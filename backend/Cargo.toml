@@ -10,7 +10,9 @@ keywords = ["pokemon", "api", "backend"]
 categories = ["web-programming"]
 
 [dependencies]
-uuid = "1.19.0"
+uuid = { version = "1.19.0", features = ["v4"] }
+bcrypt = "0.15"
+regex = "1.11"
 
 [lints.clippy]
 # 厳しめの設定
@@ -38,6 +40,7 @@ similar_names = "allow"
 cast_possible_truncation = "allow"
 cast_possible_wrap = "allow"
 cast_sign_loss = "allow"
+multiple_crate_versions = "allow"  # 依存関係の問題のため
 
 [lints.rust]
 unsafe_code = "deny"

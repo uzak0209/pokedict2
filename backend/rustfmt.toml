@@ -1,24 +1,30 @@
-# Rustfmt設定 - 厳しめのコードフォーマット
+# Rustfmt設定 - stable toolchain対応
 
 # エディション設定
 edition = "2021"
 
-# インポート
-imports_granularity = "Crate"
-group_imports = "StdExternalCrate"
+# インポート (stable)
+reorder_imports = true
+reorder_modules = true
 
-# コメント
-wrap_comments = true
-comment_width = 100
-normalize_comments = true
+# インポート (nightly only - コメントアウト)
+# imports_granularity = "Crate"
+# group_imports = "StdExternalCrate"
 
-# 関数とメソッド
-fn_single_line = false
-where_single_line = false
+# コメント (nightly only - コメントアウト)
+# wrap_comments = true
+# comment_width = 100
+# normalize_comments = true
+# format_code_in_doc_comments = true
+# normalize_doc_attributes = true
 
-# 構造体とenum
-struct_field_align_threshold = 20
-enum_discrim_align_threshold = 20
+# 関数とメソッド (nightly only - コメントアウト)
+# fn_single_line = false
+# where_single_line = false
+
+# 構造体とenum (nightly only - コメントアウト)
+# struct_field_align_threshold = 20
+# enum_discrim_align_threshold = 20
 
 # 配列とスライス
 array_width = 80
@@ -30,9 +36,7 @@ hard_tabs = false
 tab_spaces = 4
 newline_style = "Unix"
 use_small_heuristics = "Default"
-reorder_imports = true
-reorder_modules = true
 remove_nested_parens = true
-condense_wildcard_suffixes = true
-format_code_in_doc_comments = true
-normalize_doc_attributes = true
+
+# その他 (nightly only - コメントアウト)
+# condense_wildcard_suffixes = true

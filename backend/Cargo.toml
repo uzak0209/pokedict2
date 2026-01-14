@@ -1,7 +1,45 @@
 [package]
 name = "backend"
 version = "0.1.0"
-edition = "2024"
+edition = "2021"
+description = "Pokemon dictionary backend API"
+license = "MIT"
+repository = "https://github.com/yourusername/pokedict2"
+readme = "README.md"
+keywords = ["pokemon", "api", "backend"]
+categories = ["web-programming"]
 
 [dependencies]
 uuid = "1.19.0"
+
+[lints.clippy]
+# 厳しめの設定
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+
+# 特に厳しくチェックしたい項目
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+
+# 緩和する項目
+print_stdout = "allow"
+print_stderr = "allow"
+missing_docs_in_private_items = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+float_cmp = "allow"  # テストコードで使用
+module_name_repetitions = "allow"
+similar_names = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+
+[lints.rust]
+unsafe_code = "deny"
+missing_docs = "allow"  # 後で有効化
+unused_must_use = "deny"

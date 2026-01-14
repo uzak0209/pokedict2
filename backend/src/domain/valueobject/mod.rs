@@ -1,6 +1,9 @@
 pub mod counter;
 pub mod effective;
+pub mod email;
+pub mod hashedpassword;
 pub mod pokemontype;
+pub mod teamname;
 pub mod typeset;
 pub mod usage;
 pub mod username;

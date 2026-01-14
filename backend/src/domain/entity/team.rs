@@ -1,11 +1,12 @@
-use uuid::Uuid;
+use crate::domain::entity::pokemon_form::PokemonForm;
 use crate::domain::valueobject::teamname::TeamName;
-use crate::domain::entity::pokemon_form::{self, PokemonForm};
-#[derive(Debug)]
-struct Team {
-    owner_id:Uuid,
-    team_name:,
+use uuid::Uuid;
 
+#[allow(clippy::struct_field_names)]
+struct Team {
+    team_id: Uuid,
+    owner_id: Uuid,
+    team_name: TeamName,
     pokemon1: Option<PokemonForm>,
     pokemon2: Option<PokemonForm>,
     pokemon3: Option<PokemonForm>,

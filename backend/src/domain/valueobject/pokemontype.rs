@@ -1,0 +1,20 @@
+#[derive(Debug)]
+pub enum PokemonType {
+    Fire,
+    Water,
+    Grass,
+    Electric,
+    Psychic,
+    Normal,
+    Ghost,
+    Dragon,
+    Ice,
+    Fighting,
+    Flying,
+    Bug,
+    Rock,
+    Ground,
+    Poison,
+    Steel,
+    Fairy,
+}

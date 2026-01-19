@@ -1,0 +1,28 @@
+# Rust
+target/
+Cargo.lock
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+
+# CI/CD
+.github/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store

@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # バックエンド（Rust）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pokedict-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=postgres://postgres:password@db:5432/pokedict
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - pokedict-network
+
+  # フロントエンド（React + Nginx）
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pokedict-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - pokedict-network
+
+  # データベース（PostgreSQL）
+  db:
+    image: postgres:16-alpine
+    container_name: pokedict-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=pokedict
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - pokedict-network
+
+volumes:
+  postgres-data:
+
+networks:
+  pokedict-network:
+    driver: bridge

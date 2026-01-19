@@ -13,6 +13,20 @@ pub enum PasswordError {
     VerificationFailed,
 }
 
+impl std::fmt::Display for PasswordError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooShort => write!(f, "Password is too short (minimum 8 characters)"),
+            Self::TooLong => write!(f, "Password is too long (maximum 72 characters)"),
+            Self::HashingFailed => write!(f, "Failed to hash password"),
+            Self::InvalidHash => write!(f, "Invalid password hash"),
+            Self::VerificationFailed => write!(f, "Password verification failed"),
+        }
+    }
+}
+
+impl std::error::Error for PasswordError {}
+
 impl From<BcryptError> for PasswordError {
     fn from(_: BcryptError) -> Self {
         Self::HashingFailed

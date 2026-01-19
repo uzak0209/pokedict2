@@ -50,12 +50,24 @@ pub struct UpdateTeamRequestDto {
 /// ポケモンデータDTO
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonDataDto {
-    pub fullname: String,
-    pub fullname_jp: String,
-    pub form_id: i32,
-    pub species_id: i32,
-    pub primary_type: String,
-    pub secondary_type: Option<String>,
+    pub pokemon_name: String, // フォルム名を含む完全な名前（例: "Pikachu", "Rotom-Wash"）
+    pub terastal_type: String,
+    pub ev_hp: u16,
+    pub ev_attack: u16,
+    pub ev_defense: u16,
+    pub ev_special_attack: u16,
+    pub ev_special_defense: u16,
+    pub ev_speed: u16,
+    pub iv_hp: u16,
+    pub iv_attack: u16,
+    pub iv_defense: u16,
+    pub iv_special_attack: u16,
+    pub iv_special_defense: u16,
+    pub iv_speed: u16,
+    pub nature: String,
+    pub ability: String,
+    pub held_item: Option<String>,
+    pub moves: Vec<String>, // 技名のリスト（最大4つ）
 }
 
 /// エラーレスポンスDTO
@@ -169,12 +181,24 @@ pub async fn update_team<R: TeamRepository + 'static>(
         pokemon
             .iter()
             .map(|p| PokemonData {
-                fullname: p.fullname.clone(),
-                fullname_jp: p.fullname_jp.clone(),
-                form_id: p.form_id,
-                species_id: p.species_id,
-                primary_type: p.primary_type.clone(),
-                secondary_type: p.secondary_type.clone(),
+                pokemon_name: p.pokemon_name.clone(),
+                terastal_type: p.terastal_type.clone(),
+                ev_hp: p.ev_hp,
+                ev_attack: p.ev_attack,
+                ev_defense: p.ev_defense,
+                ev_special_attack: p.ev_special_attack,
+                ev_special_defense: p.ev_special_defense,
+                ev_speed: p.ev_speed,
+                iv_hp: p.iv_hp,
+                iv_attack: p.iv_attack,
+                iv_defense: p.iv_defense,
+                iv_special_attack: p.iv_special_attack,
+                iv_special_defense: p.iv_special_defense,
+                iv_speed: p.iv_speed,
+                nature: p.nature.clone(),
+                ability: p.ability.clone(),
+                held_item: p.held_item.clone(),
+                moves: p.moves.clone(),
             })
             .collect()
     });

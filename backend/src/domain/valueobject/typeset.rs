@@ -1,7 +1,7 @@
 use crate::domain::valueobject::effective::Effectiveness;
 use crate::domain::valueobject::pokemontype::PokemonType;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TypeSet {
     primary: PokemonType,
     secondary: Option<PokemonType>,

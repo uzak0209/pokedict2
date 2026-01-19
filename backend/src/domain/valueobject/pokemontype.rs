@@ -23,6 +23,71 @@ pub enum PokemonType {
     Dark,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParsePokemonTypeError;
+
+impl std::fmt::Display for ParsePokemonTypeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid Pokemon type")
+    }
+}
+
+impl std::error::Error for ParsePokemonTypeError {}
+
+impl FromStr for PokemonType {
+    type Err = ParsePokemonTypeError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "fire" | "ほのお" => Ok(Self::Fire),
+            "water" | "みず" => Ok(Self::Water),
+            "grass" | "くさ" => Ok(Self::Grass),
+            "electric" | "でんき" => Ok(Self::Electric),
+            "psychic" | "エスパー" => Ok(Self::Psychic),
+            "normal" | "ノーマル" => Ok(Self::Normal),
+            "ghost" | "ゴースト" => Ok(Self::Ghost),
+            "dragon" | "ドラゴン" => Ok(Self::Dragon),
+            "ice" | "こおり" => Ok(Self::Ice),
+            "fighting" | "かくとう" => Ok(Self::Fighting),
+            "flying" | "ひこう" => Ok(Self::Flying),
+            "bug" | "むし" => Ok(Self::Bug),
+            "rock" | "いわ" => Ok(Self::Rock),
+            "ground" | "じめん" => Ok(Self::Ground),
+            "poison" | "どく" => Ok(Self::Poison),
+            "steel" | "はがね" => Ok(Self::Steel),
+            "fairy" | "フェアリー" => Ok(Self::Fairy),
+            "dark" | "あく" => Ok(Self::Dark),
+            _ => Err(ParsePokemonTypeError),
+        }
+    }
+}
+
+impl std::fmt::Display for PokemonType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match self {
+            Self::Fire => "Fire",
+            Self::Water => "Water",
+            Self::Grass => "Grass",
+            Self::Electric => "Electric",
+            Self::Psychic => "Psychic",
+            Self::Normal => "Normal",
+            Self::Ghost => "Ghost",
+            Self::Dragon => "Dragon",
+            Self::Ice => "Ice",
+            Self::Fighting => "Fighting",
+            Self::Flying => "Flying",
+            Self::Bug => "Bug",
+            Self::Rock => "Rock",
+            Self::Ground => "Ground",
+            Self::Poison => "Poison",
+            Self::Steel => "Steel",
+            Self::Fairy => "Fairy",
+            Self::Dark => "Dark",
+        };
+        write!(f, "{name}")
+    }
+}
+
 impl PokemonType {
     /// 全てのポケモンタイプを配列で返す
     /// Returns all Pokemon types

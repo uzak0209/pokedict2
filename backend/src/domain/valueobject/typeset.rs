@@ -1,7 +1,8 @@
 use crate::domain::valueobject::effective::Effectiveness;
 use crate::domain::valueobject::pokemontype::PokemonType;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TypeSet {
     primary: PokemonType,
     secondary: Option<PokemonType>,

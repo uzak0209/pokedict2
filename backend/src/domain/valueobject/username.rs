@@ -9,6 +9,18 @@ pub enum UsernameValidationError {
     InvalidCharacters,
 }
 
+impl std::fmt::Display for UsernameValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TooShort => write!(f, "Username is too short (minimum 3 characters)"),
+            Self::TooLong => write!(f, "Username is too long (maximum 20 characters)"),
+            Self::InvalidCharacters => write!(f, "Username contains invalid characters (only alphanumeric, underscore, and hyphen allowed)"),
+        }
+    }
+}
+
+impl std::error::Error for UsernameValidationError {}
+
 impl Username {
     const MIN_LENGTH: usize = 3;
     const MAX_LENGTH: usize = 20;

@@ -101,7 +101,7 @@ impl TeamRepository for PostgresTeamRepository {
                 })?;
 
                 // JSONからVecに変換
-                let pokemon_vec = serde_json::from_value(pokemon_data).map_err(|e| {
+                let pokemon_vec: Vec<Option<crate::domain::entity::pokemon_form::PokemonForm>> = serde_json::from_value(pokemon_data).map_err(|e| {
                     TeamRepositoryError::DatabaseError(format!("Failed to deserialize pokemon: {e}"))
                 })?;
 
@@ -138,7 +138,7 @@ impl TeamRepository for PostgresTeamRepository {
                     TeamRepositoryError::DatabaseError(format!("Invalid team name: {e}"))
                 })?;
 
-                let pokemon_vec = serde_json::from_value(pokemon_data).map_err(|e| {
+                let pokemon_vec: Vec<Option<crate::domain::entity::pokemon_form::PokemonForm>> = serde_json::from_value(pokemon_data).map_err(|e| {
                     TeamRepositoryError::DatabaseError(format!(
                         "Failed to deserialize pokemon: {e}"
                     ))

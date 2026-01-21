@@ -1,24 +1,28 @@
-version: '3.8'
-
 services:
   # バックエンド開発環境
   backend-dev:
-    image: rust:1.75
+    image: rust:latest
     container_name: pokedict-backend-dev
     working_dir: /app
-    command: cargo watch -x run
+    command: cargo run
     ports:
       - "8080:8080"
     environment:
+      - HOST=0.0.0.0
+      - PORT=8080
+      - USE_POSTGRES=true
       - RUST_LOG=debug
-      - DATABASE_URL=postgres://postgres:password@db:5432/pokedict
+      - DATABASE_URL=postgresql://postgres:password@db:5432/pokedict
+      - JWT_SECRET=development_secret_key
+      - CARGO_TARGET_DIR=/app/target
     volumes:
       - ./backend:/app
       - cargo-cache:/usr/local/cargo/registry
       - cargo-git:/usr/local/cargo/git
       - target-cache:/app/target
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - pokedict-network
 
@@ -27,15 +31,15 @@ services:
     image: node:20-alpine
     container_name: pokedict-frontend-dev
     working_dir: /app
-    command: npm run dev -- --host
+    command: sh -c "npm install && npm run dev -- --host"
     ports:
       - "5173:5173"
     environment:
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8080
+      - VITE_API_URL=http://localhost:8080/api
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - node-modules:/app/node_modules
     depends_on:
       - backend-dev
     networks:
@@ -53,6 +57,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
       - pokedict-network
 
@@ -61,6 +70,7 @@ volumes:
   cargo-cache:
   cargo-git:
   target-cache:
+  node-modules:
 
 networks:
   pokedict-network:

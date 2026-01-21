@@ -1,20 +1,26 @@
-use actix_web::{web, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use typeshare::typeshare;
 
+use crate::handler::auth_middleware::require_auth;
+use crate::repository::postgres_refresh_token_repository::PostgresRefreshTokenRepository;
+use crate::repository::postgres_user_repository::PostgresUserRepository;
 use crate::repository::team_repository::TeamRepository;
+use crate::usecase::auth_service::AuthService;
 use crate::usecase::team_management::{
     CreateTeamRequest, PokemonData, TeamManagementError, TeamManagementUseCase, UpdateTeamRequest,
 };
 
 /// チーム作成リクエストDTO
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateTeamRequestDto {
-    pub owner_id: String,
     pub team_name: String,
 }
 
 /// チーム作成レスポンスDTO
+#[typeshare]
 #[derive(Debug, Serialize)]
 pub struct CreateTeamResponseDto {
     pub team_id: String,
@@ -23,6 +29,7 @@ pub struct CreateTeamResponseDto {
 }
 
 /// チームレスポンスDTO
+#[typeshare]
 #[derive(Debug, Serialize)]
 pub struct TeamResponseDto {
     pub team_id: String,
@@ -32,6 +39,7 @@ pub struct TeamResponseDto {
 }
 
 /// ポケモンレスポンスDTO
+#[typeshare]
 #[derive(Debug, Serialize)]
 pub struct PokemonResponseDto {
     pub fullname: String,
@@ -41,6 +49,7 @@ pub struct PokemonResponseDto {
 }
 
 /// チーム更新リクエストDTO
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UpdateTeamRequestDto {
     pub team_name: Option<String>,
@@ -48,6 +57,7 @@ pub struct UpdateTeamRequestDto {
 }
 
 /// ポケモンデータDTO
+#[typeshare]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PokemonDataDto {
     pub pokemon_name: String, // フォルム名を含む完全な名前（例: "Pikachu", "Rotom-Wash"）
@@ -70,24 +80,40 @@ pub struct PokemonDataDto {
     pub moves: Vec<String>, // 技名のリスト（最大4つ）
 }
 
-/// エラーレスポンスDTO
+/// エラーレスポンスDTO (Team用)
+#[typeshare]
 #[derive(Debug, Serialize)]
-pub struct ErrorResponseDto {
+pub struct TeamErrorResponseDto {
     pub error: String,
 }
+
+use crate::repository::postgres_pokemon_master_repository::PokemonMasterRepository;
 
 /// チーム作成ハンドラー
 ///
 /// POST /api/teams
 pub async fn create_team<R: TeamRepository + 'static>(
-    req: web::Json<CreateTeamRequestDto>,
+    req: HttpRequest,
+    body: web::Json<CreateTeamRequestDto>,
     repository: web::Data<Arc<R>>,
+    pokemon_repository: web::Data<PokemonMasterRepository>,
+    auth_service: web::Data<
+        Arc<AuthService<PostgresUserRepository, PostgresRefreshTokenRepository>>,
+    >,
 ) -> impl Responder {
-    let usecase = TeamManagementUseCase::new(repository.get_ref().clone());
+    let user_id = match require_auth(&req, &auth_service).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let usecase = TeamManagementUseCase::new(
+        repository.get_ref().clone(),
+        pokemon_repository.get_ref().clone(),
+    );
 
     let request = CreateTeamRequest {
-        owner_id: req.owner_id.clone(),
-        team_name: req.team_name.clone(),
+        owner_id: user_id.to_string(),
+        team_name: body.team_name.clone(),
     };
 
     match usecase.create_team(request).await {
@@ -103,11 +129,25 @@ pub async fn create_team<R: TeamRepository + 'static>(
 /// チーム取得ハンドラー
 ///
 /// GET /api/teams/{team_id}
+/// 認証必須にして所有者のみ見せるか、公開範囲設定によるが、一旦認証必須にする
 pub async fn get_team<R: TeamRepository + 'static>(
+    req: HttpRequest,
     team_id: web::Path<String>,
     repository: web::Data<Arc<R>>,
+    pokemon_repository: web::Data<PokemonMasterRepository>,
+    auth_service: web::Data<
+        Arc<AuthService<PostgresUserRepository, PostgresRefreshTokenRepository>>,
+    >,
 ) -> impl Responder {
-    let usecase = TeamManagementUseCase::new(repository.get_ref().clone());
+    let _user_id = match require_auth(&req, &auth_service).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+
+    let usecase = TeamManagementUseCase::new(
+        repository.get_ref().clone(),
+        pokemon_repository.get_ref().clone(),
+    );
 
     match usecase.get_team(&team_id).await {
         Ok(response) => HttpResponse::Ok().json(TeamResponseDto {
@@ -133,12 +173,25 @@ pub async fn get_team<R: TeamRepository + 'static>(
 ///
 /// GET /api/users/{user_id}/teams
 pub async fn get_user_teams<R: TeamRepository + 'static>(
-    user_id: web::Path<String>,
+    req: HttpRequest,
+    path_user_id: web::Path<String>,
     repository: web::Data<Arc<R>>,
+    pokemon_repository: web::Data<PokemonMasterRepository>,
+    auth_service: web::Data<
+        Arc<AuthService<PostgresUserRepository, PostgresRefreshTokenRepository>>,
+    >,
 ) -> impl Responder {
-    let usecase = TeamManagementUseCase::new(repository.get_ref().clone());
+    let _auth_user_id = match require_auth(&req, &auth_service).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
 
-    match usecase.get_user_teams(&user_id).await {
+    let usecase = TeamManagementUseCase::new(
+        repository.get_ref().clone(),
+        pokemon_repository.get_ref().clone(),
+    );
+
+    match usecase.get_user_teams(&path_user_id).await {
         Ok(teams) => {
             let teams_dto: Vec<TeamResponseDto> = teams
                 .into_iter()
@@ -168,16 +221,26 @@ pub async fn get_user_teams<R: TeamRepository + 'static>(
 ///
 /// PUT /api/teams/{team_id}
 pub async fn update_team<R: TeamRepository + 'static>(
+    req: HttpRequest,
     team_id: web::Path<String>,
-    req: web::Json<UpdateTeamRequestDto>,
+    body: web::Json<UpdateTeamRequestDto>,
     repository: web::Data<Arc<R>>,
-    // TODO: 認証ミドルウェアからユーザーIDを取得
-    // 今は仮でクエリパラメータから取得
-    query: web::Query<RequesterQuery>,
+    pokemon_repository: web::Data<PokemonMasterRepository>,
+    auth_service: web::Data<
+        Arc<AuthService<PostgresUserRepository, PostgresRefreshTokenRepository>>,
+    >,
 ) -> impl Responder {
-    let usecase = TeamManagementUseCase::new(repository.get_ref().clone());
+    let user_id = match require_auth(&req, &auth_service).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
 
-    let pokemon_data = req.pokemon.as_ref().map(|pokemon| {
+    let usecase = TeamManagementUseCase::new(
+        repository.get_ref().clone(),
+        pokemon_repository.get_ref().clone(),
+    );
+
+    let pokemon_data = body.pokemon.as_ref().map(|pokemon| {
         pokemon
             .iter()
             .map(|p| PokemonData {
@@ -205,11 +268,11 @@ pub async fn update_team<R: TeamRepository + 'static>(
 
     let request = UpdateTeamRequest {
         team_id: team_id.to_string(),
-        team_name: req.team_name.clone(),
+        team_name: body.team_name.clone(),
         pokemon: pokemon_data,
     };
 
-    match usecase.update_team(request, &query.requester_id).await {
+    match usecase.update_team(request, &user_id.to_string()).await {
         Ok(response) => HttpResponse::Ok().json(TeamResponseDto {
             team_id: response.team_id,
             owner_id: response.owner_id,
@@ -233,23 +296,28 @@ pub async fn update_team<R: TeamRepository + 'static>(
 ///
 /// DELETE /api/teams/{team_id}
 pub async fn delete_team<R: TeamRepository + 'static>(
+    req: HttpRequest,
     team_id: web::Path<String>,
     repository: web::Data<Arc<R>>,
-    // TODO: 認証ミドルウェアからユーザーIDを取得
-    query: web::Query<RequesterQuery>,
+    pokemon_repository: web::Data<PokemonMasterRepository>,
+    auth_service: web::Data<
+        Arc<AuthService<PostgresUserRepository, PostgresRefreshTokenRepository>>,
+    >,
 ) -> impl Responder {
-    let usecase = TeamManagementUseCase::new(repository.get_ref().clone());
+    let user_id = match require_auth(&req, &auth_service).await {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
 
-    match usecase.delete_team(&team_id, &query.requester_id).await {
+    let usecase = TeamManagementUseCase::new(
+        repository.get_ref().clone(),
+        pokemon_repository.get_ref().clone(),
+    );
+
+    match usecase.delete_team(&team_id, &user_id.to_string()).await {
         Ok(()) => HttpResponse::NoContent().finish(),
         Err(err) => handle_team_error(err),
     }
-}
-
-/// リクエスターのクエリパラメータ（仮）
-#[derive(Debug, Deserialize)]
-pub struct RequesterQuery {
-    pub requester_id: String,
 }
 
 /// エラーハンドリング
@@ -273,22 +341,20 @@ fn handle_team_error(err: TeamManagementError) -> HttpResponse {
         }
     };
 
-    HttpResponse::build(status).json(ErrorResponseDto { error: message })
+    HttpResponse::build(status).json(TeamErrorResponseDto { error: message })
 }
 
 /// チーム関連のルートを設定
 pub fn configure_team_routes<R: TeamRepository + 'static>(cfg: &mut web::ServiceConfig) {
     cfg.service(
-        web::scope("/api")
-            .service(
-                web::scope("/teams")
-                    .route("", web::post().to(create_team::<R>))
-                    .route("/{team_id}", web::get().to(get_team::<R>))
-                    .route("/{team_id}", web::put().to(update_team::<R>))
-                    .route("/{team_id}", web::delete().to(delete_team::<R>)),
-            )
-            .service(
-                web::scope("/users").route("/{user_id}/teams", web::get().to(get_user_teams::<R>)),
-            ),
+        web::scope("/api/teams")
+            .route("", web::post().to(create_team::<R>))
+            .route("/{team_id}", web::get().to(get_team::<R>))
+            .route("/{team_id}", web::put().to(update_team::<R>))
+            .route("/{team_id}", web::delete().to(delete_team::<R>)),
+    );
+    cfg.route(
+        "/api/users/{user_id}/teams",
+        web::get().to(get_user_teams::<R>),
     );
 }

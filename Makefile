@@ -1,4 +1,4 @@
-.PHONY: help install dev build test clean lint format docker-up docker-down kill-ports
+.PHONY: help install dev build test clean lint format docker-up docker-down kill-ports sync-pokeapi sync-smogon check-names
 
 # ポートチェック用のヘルパー関数
 define kill_port
@@ -196,3 +196,22 @@ setup: install
 	@echo "次のステップ:"
 	@echo "  1. make dev          - 開発サーバーを起動"
 	@echo "  2. ブラウザで http://localhost:5173 を開く"
+
+# データ同期 (sync-pokeapi)
+sync-pokeapi:
+	@echo "🔄 PokeAPI同期スクリプトを実行中..."
+	cd sync-pokeapi && make sync-pokeapi
+
+sync-smogon:
+	@echo "⚔️ Smogonデータ同期を実行中..."
+	cd sync-pokeapi && make sync-smogon
+
+check-names:
+	@echo "🔍 名前マッピングを確認中..."
+	cd sync-pokeapi && make check-names
+
+# 型定義生成
+gen-types:
+	@echo "🔄 Typeshareを使用してバックエンドからTypeScript型定義を生成中..."
+	typeshare ./backend --lang=typescript --output-file=./frontend/src/lib/types/api.ts
+	@echo "✅ 型定義の生成が完了しました: frontend/src/lib/types/api.ts"

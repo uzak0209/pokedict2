@@ -33,7 +33,7 @@ impl Team {
         team_id: Uuid,
         owner_id: Uuid,
         team_name: TeamName,
-        pokemon: Vec<PokemonForm>,
+        pokemon: Vec<Option<PokemonForm>>,
     ) -> Result<Self, TeamError> {
         if pokemon.len() > 6 {
             return Err(TeamError::TooManyPokemon);
@@ -41,7 +41,7 @@ impl Team {
 
         let mut pokemon_array: [Option<PokemonForm>; 6] = [None, None, None, None, None, None];
         for (i, p) in pokemon.into_iter().enumerate() {
-            pokemon_array[i] = Some(p);
+            pokemon_array[i] = p;
         }
 
         Ok(Self {

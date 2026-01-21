@@ -4,6 +4,7 @@ use uuid::Uuid;
 use crate::domain::entity::pokemon_form::PokemonForm;
 use crate::domain::entity::team::{Team, TeamError};
 use crate::domain::valueobject::teamname::{TeamName, TeamNameValidationError};
+use crate::repository::postgres_pokemon_master_repository::PokemonMasterRepository;
 use crate::repository::team_repository::{TeamRepository, TeamRepositoryError};
 
 /// チーム作成リクエスト
@@ -37,6 +38,23 @@ pub struct PokemonResponse {
     pub fullname_jp: String,
     pub form_id: i32,
     pub species_id: i32,
+    pub terastal_type: String,
+    pub ev_hp: u16,
+    pub ev_attack: u16,
+    pub ev_defense: u16,
+    pub ev_special_attack: u16,
+    pub ev_special_defense: u16,
+    pub ev_speed: u16,
+    pub iv_hp: u16,
+    pub iv_attack: u16,
+    pub iv_defense: u16,
+    pub iv_special_attack: u16,
+    pub iv_special_defense: u16,
+    pub iv_speed: u16,
+    pub nature: String,
+    pub ability: String,
+    pub held_item: Option<String>,
+    pub moves: Vec<String>,
 }
 
 /// チーム更新リクエスト
@@ -69,6 +87,7 @@ pub struct PokemonData {
     pub held_item: Option<String>,
     pub moves: Vec<String>, // 技名のリスト（最大4つ）
 }
+
 
 /// チーム管理のエラー
 #[derive(Debug, thiserror::Error)]
@@ -113,13 +132,17 @@ impl From<TeamError> for TeamManagementError {
 /// チーム管理のユースケース
 pub struct TeamManagementUseCase<R: TeamRepository> {
     team_repository: Arc<R>,
+    pokemon_repository: PokemonMasterRepository,
 }
 
 impl<R: TeamRepository> TeamManagementUseCase<R> {
     /// 新しいユースケースインスタンスを作成
     #[must_use]
-    pub fn new(team_repository: Arc<R>) -> Self {
-        Self { team_repository }
+    pub fn new(team_repository: Arc<R>, pokemon_repository: PokemonMasterRepository) -> Self {
+        Self {
+            team_repository,
+            pokemon_repository,
+        }
     }
 
     /// チームを作成
@@ -231,7 +254,7 @@ impl<R: TeamRepository> TeamManagementUseCase<R> {
 
         // 5. ポケモンの更新
         if let Some(pokemon_data) = request.pokemon {
-            let pokemon = pokemon_data_to_forms(pokemon_data)?;
+            let pokemon = self.resolve_pokemon_data(pokemon_data).await?;
             team.update_pokemon(pokemon)?;
         }
 
@@ -276,43 +299,21 @@ impl<R: TeamRepository> TeamManagementUseCase<R> {
 
         Ok(())
     }
-}
 
-/// TeamエンティティをTeamResponseに変換
-fn team_to_response(team: &Team) -> TeamResponse {
-    TeamResponse {
-        team_id: team.team_id().to_string(),
-        owner_id: team.owner_id().to_string(),
-        team_name: team.team_name().as_str().to_string(),
-        pokemon: team
-            .pokemon_list()
-            .iter()
-            .map(|p| PokemonResponse {
-                fullname: p.fullname().to_string(),
-                fullname_jp: p.fullname_jp().to_string(),
-                form_id: p.form_id(),
-                species_id: p.species_id(),
-            })
-            .collect(),
-    }
-}
+    /// PokemonDataをPokemonFormに変換（DB解決あり）
+    async fn resolve_pokemon_data(
+        &self,
+        data: Vec<PokemonData>,
+    ) -> Result<Vec<PokemonForm>, TeamManagementError> {
+        use crate::domain::valueobject::move_slot::{Move, MoveSet};
+        use crate::domain::valueobject::nature::Nature;
+        use crate::domain::valueobject::pokemontype::PokemonType;
+        use crate::domain::valueobject::stats::Stats;
+        use crate::domain::valueobject::typeset::TypeSet;
 
-/// PokemonDataをPokemonFormに変換
-///
-/// TODO: 将来的には以下の実装に変更する
-/// 1. PokemonRepositoryでpokemon_nameからform_idを解決
-/// 2. PokemonRepositoryからform_idでマスタデータを取得
-/// 3. マスタデータから fullname, fullname_jp, species_id, typeset を取得
-/// 4. クライアントから受け取った対戦情報（EV, IV, 性格など）と組み合わせる
-fn pokemon_data_to_forms(data: Vec<PokemonData>) -> Result<Vec<PokemonForm>, TeamManagementError> {
-    use crate::domain::valueobject::move_slot::{Move, MoveSet};
-    use crate::domain::valueobject::nature::Nature;
-    use crate::domain::valueobject::pokemontype::PokemonType;
-    use crate::domain::valueobject::stats::Stats;
-    use crate::domain::valueobject::typeset::TypeSet;
+        let mut forms = Vec::new();
 
-    data.into_iter()
-        .map(|p| {
+        for p in data {
             // テラスタルタイプのパース
             let terastal_type = p.terastal_type.parse::<PokemonType>().map_err(|_| {
                 TeamManagementError::TeamError(format!(
@@ -363,15 +364,32 @@ fn pokemon_data_to_forms(data: Vec<PokemonData>) -> Result<Vec<PokemonForm>, Tea
                 TeamManagementError::TeamError(format!("Invalid move set: {e}"))
             })?;
 
-            // TODO: ここでPokemonRepositoryでpokemon_nameからform_idを解決
-            // 現在は暫定的にダミーデータを使用
-            let form_id = resolve_pokemon_name_to_form_id(&p.pokemon_name)?;
-            let fullname = p.pokemon_name.clone();
-            let fullname_jp = p.pokemon_name.clone(); // TODO: マスタデータから取得
-            let species_id = form_id; // TODO: マスタデータから取得
-            let typeset = TypeSet::new(PokemonType::Normal, None); // TODO: マスタデータから取得
+            // ポケモン名からform_idとメタデータをDB解決
+            let master = self
+                .pokemon_repository
+                .find_by_name(&p.pokemon_name)
+                .await
+                .map_err(|e| TeamManagementError::Repository(e.to_string()))?
+                .ok_or_else(|| {
+                    TeamManagementError::TeamError(format!("Unknown pokemon name: {}", p.pokemon_name))
+                })?;
 
-            Ok(PokemonForm::new(
+            let form_id = master.form_id;
+            let fullname = master.fullname;
+            let fullname_jp = master.fullname_ja.unwrap_or_else(|| fullname.clone());
+            let species_id = master.species_id;
+
+            // タイプのパース
+            let type1 = master
+                .type1
+                .parse::<PokemonType>()
+                .unwrap_or(PokemonType::Normal);
+            let type2 = master
+                .type2
+                .and_then(|t| t.parse::<PokemonType>().ok());
+            let typeset = TypeSet::new(type1, type2);
+
+            forms.push(PokemonForm::new(
                 form_id,
                 species_id,
                 fullname,
@@ -384,36 +402,45 @@ fn pokemon_data_to_forms(data: Vec<PokemonData>) -> Result<Vec<PokemonForm>, Tea
                 p.ability,
                 p.held_item,
                 moves,
-            ))
-        })
-        .collect()
+            ));
+        }
+
+        Ok(forms)
+    }
 }
 
-/// ポケモン名からform_idを解決する
-///
-/// TODO: 将来的にはPokemonRepositoryを使用して実装
-/// 現在は暫定的にハッシュマップで管理
-fn resolve_pokemon_name_to_form_id(pokemon_name: &str) -> Result<i32, TeamManagementError> {
-    // TODO: データベースから取得する実装に変更
-    // 暫定的なマッピング
-    let mapping = [
-        ("Pikachu", 25),
-        ("Charizard", 6),
-        ("Greninja", 658),
-        ("Rotom-Wash", 10009),
-        ("Rotom-Heat", 10010),
-        ("Rotom-Frost", 10011),
-        ("Rotom-Fan", 10012),
-        ("Rotom-Mow", 10013),
-        ("Landorus-Therian", 10019),
-        ("Urshifu-Rapid-Strike", 10230),
-    ];
-
-    mapping
-        .iter()
-        .find(|(name, _)| name.eq_ignore_ascii_case(pokemon_name))
-        .map(|(_, id)| *id)
-        .ok_or_else(|| {
-            TeamManagementError::TeamError(format!("Unknown pokemon name: {pokemon_name}"))
-        })
+/// TeamエンティティをTeamResponseに変換
+fn team_to_response(team: &Team) -> TeamResponse {
+    TeamResponse {
+        team_id: team.team_id().to_string(),
+        owner_id: team.owner_id().to_string(),
+        team_name: team.team_name().as_str().to_string(),
+        pokemon: team
+            .pokemon_list()
+            .iter()
+            .map(|p| PokemonResponse {
+                fullname: p.fullname().to_string(),
+                fullname_jp: p.fullname_jp().to_string(),
+                form_id: p.form_id(),
+                species_id: p.species_id(),
+                terastal_type: p.terastal_type().to_string(),
+                ev_hp: p.ev().hp,
+                ev_attack: p.ev().attack,
+                ev_defense: p.ev().defense,
+                ev_special_attack: p.ev().special_attack,
+                ev_special_defense: p.ev().special_defense,
+                ev_speed: p.ev().speed,
+                iv_hp: p.iv().hp,
+                iv_attack: p.iv().attack,
+                iv_defense: p.iv().defense,
+                iv_special_attack: p.iv().special_attack,
+                iv_special_defense: p.iv().special_defense,
+                iv_speed: p.iv().speed,
+                nature: p.nature().to_string(),
+                ability: p.ability().to_string(),
+                held_item: p.held_item().map(|s| s.to_string()),
+                moves: p.moves().move_list().iter().map(|m| m.name().to_string()).collect(),
+            })
+            .collect(),
+    }
 }

@@ -2,6 +2,7 @@ pub mod counter;
 pub mod effective;
 pub mod email;
 pub mod hashedpassword;
+pub mod jwt;
 pub mod move_slot;
 pub mod nature;
 pub mod pokemontype;

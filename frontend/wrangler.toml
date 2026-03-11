@@ -1,0 +1,6 @@
+name = "pokedict-frontend"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "./dist"
+
+# Note: Custom domains (staging.ruxel.net and ruxel.net) must be configured
+# in the Cloudflare Dashboard under Workers & Pages > [Project] > Custom domains

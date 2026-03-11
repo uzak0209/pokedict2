@@ -1,0 +1,88 @@
+# Frontend Development Commands
+
+# Show available commands
+default:
+  @just --list
+
+# Development
+alias d := dev
+
+# Start development server
+dev:
+  npm run dev
+
+# Run type check
+check:
+  npm run type-check
+
+# Run linter
+lint:
+  npm run lint
+
+# Build for production
+build:
+  npm run build
+
+# Preview production build
+preview:
+  npm run preview
+
+# Deployment
+
+# Deploy to staging
+deploy-staging:
+  npm run deploy:staging
+
+# Deploy to production
+deploy-production:
+  npm run deploy:production
+
+# Build with staging API
+build-staging:
+  VITE_API_URL=https://api-staging.ruxel.net/api npm run build
+
+# Build with production API
+build-production:
+  VITE_API_URL=https://api.ruxel.net/api npm run build
+
+# Testing
+
+# Test staging frontend (opens browser)
+test-staging:
+  @echo "Opening staging frontend..."
+  @open https://staging.ruxel.net || xdg-open https://staging.ruxel.net || echo "Please visit: https://staging.ruxel.net"
+
+# Test production frontend (opens browser)
+test-production:
+  @echo "Opening production frontend..."
+  @open https://ruxel.net || xdg-open https://ruxel.net || echo "Please visit: https://ruxel.net"
+
+# Utilities
+
+# Install dependencies
+install:
+  npm install
+
+# Clean node_modules
+clean:
+  rm -rf node_modules
+
+# Clean and reinstall
+reinstall: clean install
+
+# Clean dist
+clean-dist:
+  rm -rf dist
+
+# Complete CI check
+ci:
+  @echo "🔍 Running CI checks..."
+  npm run type-check
+  npm run lint
+  @echo "✅ All checks passed!"
+
+# Setup: install dependencies
+setup:
+  @echo "🚀 Setting up frontend..."
+  npm install
+  @echo "✅ Setup complete! Run 'just dev' to start the server"

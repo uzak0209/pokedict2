@@ -7,6 +7,7 @@
         saveMatchupOverride,
         type TeamSuggestionWithReasoningResponse,
         type SuggestedPokemonWithReasoning,
+        type SuggestedPokemon,
         type MatrixPokemon,
     } from "$lib/api/client";
     import { getUserPokemon } from "$lib/api/pokemon";
@@ -136,7 +137,7 @@
 
     // マッチアップ修正
     async function toggleMatchup(
-        suggestion: SuggestedPokemon,
+        suggestion: SuggestedPokemon | SuggestedPokemonWithReasoning,
         threat: MatrixPokemon,
         currentStatus: boolean,
     ) {
@@ -360,7 +361,9 @@
                                     <td
                                         class="sticky left-0 z-10 bg-black/90 p-3 border-b border-accents-2 border-r text-white group"
                                     >
-                                        <div class="flex items-center gap-2 mb-1">
+                                        <div
+                                            class="flex items-center gap-2 mb-1"
+                                        >
                                             <span
                                                 class="bg-purple-900/30 text-purple-300 text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold border border-purple-800 group-hover:bg-purple-800 transition-colors"
                                                 >{i + 1}</span
@@ -376,7 +379,9 @@
                                             {/if}
                                         </div>
                                         {#if suggestion.reasoning}
-                                            <div class="text-xs text-accents-5 mt-1 pl-7 italic border-l-2 border-purple-800/50">
+                                            <div
+                                                class="text-xs text-accents-5 mt-1 pl-7 italic border-l-2 border-purple-800/50"
+                                            >
                                                 {suggestion.reasoning}
                                             </div>
                                         {/if}

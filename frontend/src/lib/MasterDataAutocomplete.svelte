@@ -154,11 +154,11 @@
                     on:click={() => selectOption(option)}
                 >
                     <div class="flex items-center gap-2">
-                        {#if option.type && TYPE_COLORS[option.type]}
+                        {#if option.type && TYPE_COLORS[option.type as PokemonType]}
                             <span
                                 class="w-3 h-3 rounded-full"
                                 style="background-color: {TYPE_COLORS[
-                                    option.type
+                                    option.type as PokemonType
                                 ]}"
                             ></span>
                         {/if}

@@ -1,6 +1,11 @@
 import * as v from 'valibot';
 import { get } from './client';
-import type { PokemonMasterDto, PokemonMasterResponseDto } from '../types/api';
+import type { PokemonMasterDto } from '../types/api';
+
+export interface PokemonMasterResponseDto {
+    pokemon: PokemonMasterDto[];
+    total: number;
+}
 
 // Valibot schema for Pokemon Master Data
 const PokemonMasterSchema = v.object({

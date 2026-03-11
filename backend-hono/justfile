@@ -1,0 +1,190 @@
+# Backend Hono Development Commands
+
+# Show available commands
+default:
+  @just --list
+
+# Development
+alias d := dev
+
+# Start local development server
+dev:
+  npm run dev
+
+# Run typecheck
+check:
+  npm run typecheck
+
+# Run linter
+lint:
+  npm run lint
+
+# Fix linting issues
+lint-fix:
+  npm run lint:fix
+
+# Format code
+fmt:
+  npm run format
+
+# Check formatting
+fmt-check:
+  npm run format:check
+
+# Database operations
+alias db := db-studio
+
+# Generate migration from schema changes
+db-generate:
+  npm run db:generate
+
+# Apply migration to local D1
+db-migrate-local:
+  npm run db:migrate:local
+
+# Apply migration to staging D1
+db-migrate-staging:
+  npm run db:migrate:staging
+
+# Apply migration to production D1
+db-migrate-production:
+  npm run db:migrate:production
+
+# Open Drizzle Studio
+db-studio:
+  npm run db:studio
+
+# Execute SQL on local D1
+db-exec-local sql:
+  wrangler d1 execute DB --local --command="{{sql}}"
+
+# Execute SQL on staging D1
+db-exec-staging sql:
+  wrangler d1 execute pokedict-staging --remote --command="{{sql}}" --env staging
+
+# Execute SQL on production D1
+db-exec-production sql:
+  wrangler d1 execute pokedict-production --remote --command="{{sql}}" --env production
+
+# List tables in local D1
+db-tables-local:
+  wrangler d1 execute DB --local --command="SELECT name FROM sqlite_master WHERE type='table';"
+
+# List tables in staging D1
+db-tables-staging:
+  wrangler d1 execute pokedict-staging --remote --command="SELECT name FROM sqlite_master WHERE type='table';" --env staging
+
+# List tables in production D1
+db-tables-production:
+  wrangler d1 execute pokedict-production --remote --command="SELECT name FROM sqlite_master WHERE type='table';" --env production
+
+# Deployment
+alias deploy := deploy-staging
+
+# Deploy to staging
+deploy-staging:
+  npm run deploy:staging
+
+# Deploy to production
+deploy-production:
+  npm run deploy:production
+
+# Secrets management
+
+# Generate a secure JWT secret (256-bit base64)
+generate-jwt-secret:
+  @node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+# Set staging JWT secret (interactive)
+secret-jwt-staging:
+  wrangler secret put JWT_SECRET --env staging
+
+# Set production JWT secret (interactive)
+secret-jwt-production:
+  wrangler secret put JWT_SECRET --env production
+
+# Set staging ALLOWED_ORIGIN (interactive)
+secret-origin-staging:
+  wrangler secret put ALLOWED_ORIGIN --env staging
+
+# Set production ALLOWED_ORIGIN (interactive)
+secret-origin-production:
+  wrangler secret put ALLOWED_ORIGIN --env production
+
+# List staging secrets
+secret-list-staging:
+  wrangler secret list --env staging
+
+# List production secrets
+secret-list-production:
+  wrangler secret list --env production
+
+# Logs
+
+# Tail staging logs
+logs-staging:
+  wrangler tail --env staging
+
+# Tail production logs
+logs-production:
+  wrangler tail --env production
+
+# Testing
+
+# Test local health endpoint
+test-local:
+  @echo "Testing local endpoint..."
+  @curl -s http://localhost:8787/health | jq
+
+# Test staging health endpoint
+test-staging:
+  @echo "Testing staging endpoint..."
+  @curl -s https://api-staging.ruxel.net/health | jq
+
+# Test production health endpoint
+test-production:
+  @echo "Testing production endpoint..."
+  @curl -s https://api.ruxel.net/health | jq
+
+# Test staging register
+test-register-staging username email password:
+  @echo "Testing register on staging..."
+  @curl -X POST https://api-staging.ruxel.net/api/auth/register \
+    -H "Content-Type: application/json" \
+    -d '{"username":"{{username}}","email":"{{email}}","password":"{{password}}"}' | jq
+
+# Test staging login
+test-login-staging email password:
+  @echo "Testing login on staging..."
+  @curl -X POST https://api-staging.ruxel.net/api/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"{{email}}","password":"{{password}}"}' -i
+
+# Complete setup workflow
+
+# Setup: generate schema, apply to local, and start dev server
+setup:
+  @echo "🚀 Setting up local development..."
+  npm install
+  npm run db:generate
+  npm run db:migrate:local
+  @echo "✅ Setup complete! Run 'just dev' to start the server"
+
+# Full CI check (typecheck + lint + format-check)
+ci:
+  @echo "🔍 Running CI checks..."
+  npm run typecheck
+  npm run lint
+  npm run format:check
+  @echo "✅ All checks passed!"
+
+# Clean
+
+# Remove node_modules and reinstall
+clean:
+  rm -rf node_modules
+  npm install
+
+# Remove .wrangler directory (local D1 data)
+clean-wrangler:
+  rm -rf .wrangler

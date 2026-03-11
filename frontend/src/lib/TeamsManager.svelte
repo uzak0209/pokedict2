@@ -58,21 +58,13 @@
                 ← Back to Teams
             </Button>
         </div>
-        <TeamBuilder
-            teamId={null}
-            on:save={handleSave}
-            on:cancel={handleCancel}
-        />
+        <TeamBuilder on:save={handleSave} on:cancel={handleCancel} />
     {:else if mode === "edit" && selectedTeamId}
         <div class="mb-4">
             <Button variant="ghost" onclick={handleCancel} class="pl-0 gap-2">
                 ← Back to Teams
             </Button>
         </div>
-        <TeamBuilder
-            teamId={selectedTeamId}
-            on:save={handleSave}
-            on:cancel={handleCancel}
-        />
+        <TeamBuilder on:save={handleSave} on:cancel={handleCancel} />
     {/if}
 </div>

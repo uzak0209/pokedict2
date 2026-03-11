@@ -1,17 +1,22 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { createEventDispatcher } from "svelte";
+    import { onMount, createEventDispatcher } from "svelte";
+    import { createEventDispatcher as svelteCreateEventDispatcher } from "svelte";
     import type {
         CreatePokemonRequestDto,
         PokemonResponseDto as PokemonResponse,
         PokemonMasterDto,
+        LearnableMoveDto,
     } from "./types/api";
     import {
         getAllPokemonMaster,
         getPokemonUsage,
         type PokemonUsageStatsDto,
     } from "./api/pokemonMaster";
+    import { getLearnableMoves } from "./api/pokemon";
     import PokemonAutocomplete from "./PokemonAutocomplete.svelte";
+    import MasterDataAutocomplete from "./MasterDataAutocomplete.svelte";
+    import Button from "./components/ui/Button.svelte";
+    import Card from "./components/ui/Card.svelte";
 
     export let editMode: boolean = false;
     export let initialData: PokemonResponse | null = null;
@@ -21,16 +26,20 @@
         cancel: void;
     }>();
 
-    // ポケモンマスタデータ
+    // Pokemon Master Data
     let pokemonMasterData: PokemonMasterDto[] = [];
     let loadingMasterData = true;
     let selectedPokemon: PokemonMasterDto | null = null;
 
-    // Usage Stats データ
+    // Usage Stats Data
     let usageStats: PokemonUsageStatsDto | null = null;
     let loadingUsageStats = false;
 
-    // タイプのリスト
+    // Learnable Moves List
+    let learnableMoves: LearnableMoveDto[] = [];
+    let loadingMoves = false;
+
+    // Types List (Not used directly but kept for reference)
     const types = [
         "Normal",
         "Fire",
@@ -52,36 +61,7 @@
         "Fairy",
     ];
 
-    // 性格のリスト
-    const natures = [
-        "Hardy",
-        "Lonely",
-        "Brave",
-        "Adamant",
-        "Naughty",
-        "Bold",
-        "Docile",
-        "Relaxed",
-        "Impish",
-        "Lax",
-        "Timid",
-        "Hasty",
-        "Serious",
-        "Jolly",
-        "Naive",
-        "Modest",
-        "Mild",
-        "Quiet",
-        "Bashful",
-        "Rash",
-        "Calm",
-        "Gentle",
-        "Sassy",
-        "Careful",
-        "Quirky",
-    ];
-
-    // フォームの初期値
+    // Form Initial Values
     let pokemonName = initialData?.fullname || "";
     let pokemonNameJp = initialData?.fullname_jp || "";
     let nickname = initialData?.nickname || "";
@@ -120,20 +100,31 @@
         evSpDefense <= 252 &&
         evSpeed <= 252;
 
-    // 選択されたポケモンが変わったら、名前を更新 + Usage Stats を取得
+    // Update name and load stats when pokemon is selected
     $: if (selectedPokemon) {
         pokemonName = selectedPokemon.fullname;
         pokemonNameJp = selectedPokemon.fullname_ja || selectedPokemon.fullname;
         loadUsageStats(selectedPokemon.form_id);
+        loadLearnableMoves(selectedPokemon.form_id);
+    }
+
+    async function loadLearnableMoves(formId: number) {
+        loadingMoves = true;
+        learnableMoves = [];
+        try {
+            learnableMoves = await getLearnableMoves(formId);
+        } catch (e) {
+            console.error("[PokemonForm] Failed to load learnable moves:", e);
+        } finally {
+            loadingMoves = false;
+        }
     }
 
     async function loadUsageStats(formId: number) {
         loadingUsageStats = true;
         usageStats = null;
-        console.log(`[PokemonForm] Loading usage stats for form_id: ${formId}`);
         try {
             usageStats = await getPokemonUsage(formId);
-            console.log(`[PokemonForm] Usage stats loaded:`, usageStats);
         } catch (e) {
             console.error("[PokemonForm] Failed to load usage stats:", e);
         } finally {
@@ -146,13 +137,12 @@
             const response = await getAllPokemonMaster();
             pokemonMasterData = response.pokemon;
 
-            // 編集モードで既存データがある場合、選択済みポケモンを設定
             if (editMode && initialData) {
                 selectedPokemon =
                     pokemonMasterData.find(
                         (p) =>
-                            p.fullname === initialData.fullname ||
-                            p.fullname_ja === initialData.fullname_jp,
+                            p.fullname === initialData!.fullname ||
+                            p.fullname_ja === initialData!.fullname_jp,
                     ) || null;
             }
         } catch (e) {
@@ -164,16 +154,15 @@
 
     function handleSubmit() {
         if (!pokemonName || !ability || moves.filter((m) => m).length === 0) {
-            alert("ポケモン名、特性、技（最低1つ）は必須です");
+            alert("Name, Ability, and at least one Move are required.");
             return;
         }
 
         if (!evValid) {
-            alert("努力値が不正です（合計508以下、各252以下）");
+            alert("Invalid EVs (Total <= 508, Each <= 252)");
             return;
         }
 
-        // user_id はバックエンドがJWTから取得するため、リクエストには含めない
         const request: CreatePokemonRequestDto = {
             pokemon_name: pokemonName,
             pokemon_name_jp: pokemonNameJp,
@@ -201,400 +190,260 @@
     }
 </script>
 
-<div class="pokemon-form">
-    <h2>{editMode ? "ポケモン編集" : "ポケモン登録"}</h2>
+<div class="max-w-4xl mx-auto py-6">
+    <h2 class="text-3xl font-bold text-white mb-6">
+        {editMode ? "Edit Pokemon" : "New Pokemon"}
+    </h2>
 
-    <form on:submit|preventDefault={handleSubmit}>
-        <!-- 基本情報 -->
-        <section class="form-section">
-            <h3>基本情報</h3>
+    <form on:submit|preventDefault={handleSubmit} class="space-y-6 relative">
+        <!-- Basic Info -->
+        <Card class="relative z-20">
+            <h3
+                class="text-xl font-bold text-white mb-4 border-b border-accents-2 pb-2"
+            >
+                Basic Info
+            </h3>
 
-            <div class="form-group">
-                <label for="pokemon-name">ポケモン名 *</label>
-                {#if loadingMasterData}
-                    <input type="text" placeholder="読み込み中..." disabled />
-                {:else}
-                    <PokemonAutocomplete
-                        bind:value={selectedPokemon}
-                        pokemonList={pokemonMasterData}
-                        placeholder="ポケモンを検索（例: ピカチュウ）"
-                        required={true}
-                    />
-                {/if}
-            </div>
-
-            <div class="form-group">
-                <label for="nickname">ニックネーム</label>
-                <input
-                    id="nickname"
-                    type="text"
-                    bind:value={nickname}
-                    maxlength="100"
-                />
-            </div>
-
-            <div class="form-group">
-                <label for="terastal-type">テラスタイプ *</label>
-                <input
-                    id="terastal-type"
-                    type="text"
-                    bind:value={terastalType}
-                    list="tera-types-list"
-                    required
-                />
-                <datalist id="tera-types-list">
-                    {#if usageStats?.tera_types}
-                        {#each usageStats.tera_types as tera}
-                            <option value={tera.name}
-                                >{tera.percentage.toFixed(1)}%</option
-                            >
-                        {/each}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-1">
+                    <label
+                        for="pokemon-name"
+                        class="block text-sm font-medium text-accents-5"
+                        >Pokemon *</label
+                    >
+                    {#if loadingMasterData}
+                        <input
+                            type="text"
+                            placeholder="Loading..."
+                            disabled
+                            class="w-full bg-black/50 border border-accents-2 rounded p-2 text-accents-5"
+                        />
                     {:else}
-                        {#each types as type}
-                            <option value={type}>{type}</option>
-                        {/each}
+                        <PokemonAutocomplete
+                            bind:value={selectedPokemon}
+                            pokemonList={pokemonMasterData}
+                            placeholder="Search Pokemon..."
+                            required={true}
+                        />
                     {/if}
-                </datalist>
-            </div>
+                </div>
 
-            <div class="form-group">
-                <label for="nature">性格 *</label>
-                <input
-                    id="nature"
-                    type="text"
-                    bind:value={nature}
-                    list="natures-list"
-                    required
-                />
-                <datalist id="natures-list">
-                    {#if usageStats?.natures}
-                        {#each usageStats.natures as nat}
-                            <option value={nat.name}
-                                >{nat.percentage.toFixed(1)}%</option
-                            >
-                        {/each}
-                    {:else}
-                        {#each natures as nat}
-                            <option value={nat}>{nat}</option>
-                        {/each}
-                    {/if}
-                </datalist>
-            </div>
-
-            <div class="form-group">
-                <label for="ability">特性 *</label>
-                <input
-                    id="ability"
-                    type="text"
-                    bind:value={ability}
-                    list="abilities-list"
-                    required
-                    maxlength="100"
-                />
-                {#if usageStats?.abilities}
-                    <datalist id="abilities-list">
-                        {#each usageStats.abilities as ab}
-                            <option value={ab.name}
-                                >{ab.percentage.toFixed(1)}%</option
-                            >
-                        {/each}
-                    </datalist>
-                {/if}
-            </div>
-
-            <div class="form-group">
-                <label for="held-item">持ち物</label>
-                <input
-                    id="held-item"
-                    type="text"
-                    bind:value={heldItem}
-                    list="items-list"
-                    maxlength="100"
-                />
-                {#if usageStats?.items}
-                    <datalist id="items-list">
-                        {#each usageStats.items as item}
-                            <option value={item.name}
-                                >{item.percentage.toFixed(1)}%</option
-                            >
-                        {/each}
-                    </datalist>
-                {/if}
-            </div>
-        </section>
-
-        <!-- 技 -->
-        <section class="form-section">
-            <h3>技</h3>
-            {#if usageStats?.moves}
-                <datalist id="moves-list">
-                    {#each usageStats.moves as move}
-                        <option value={move.name}
-                            >{move.percentage.toFixed(1)}%</option
-                        >
-                    {/each}
-                </datalist>
-            {/if}
-            {#each moves as move, i}
-                <div class="form-group">
-                    <label for="move-{i}">技 {i + 1} {i === 0 ? "*" : ""}</label
+                <div class="space-y-1">
+                    <label
+                        for="nickname"
+                        class="block text-sm font-medium text-accents-5"
+                        >Nickname</label
                     >
                     <input
-                        id="move-{i}"
+                        id="nickname"
                         type="text"
-                        bind:value={moves[i]}
-                        list="moves-list"
-                        required={i === 0}
-                        maxlength="50"
+                        bind:value={nickname}
+                        maxlength="100"
+                        class="w-full bg-black border border-accents-2 rounded p-2 text-white focus:border-white outline-none transition-colors"
                     />
                 </div>
-            {/each}
-        </section>
 
-        <!-- 努力値 -->
-        <section class="form-section">
-            <h3>努力値 (合計: {totalEv}/508) {!evValid ? "❌" : "✅"}</h3>
-            <div class="stats-grid">
-                <div class="form-group">
-                    <label for="ev-hp">HP</label>
-                    <input
-                        id="ev-hp"
-                        type="number"
-                        bind:value={evHp}
-                        min="0"
-                        max="252"
+                <div class="space-y-1">
+                    <label
+                        for="terastal-type"
+                        class="block text-sm font-medium text-accents-5"
+                        >Tera Type *</label
+                    >
+                    <MasterDataAutocomplete
+                        options={usageStats?.tera_types || []}
+                        bind:value={terastalType}
+                        placeholder="Select Type..."
+                        required={true}
+                        loading={loadingUsageStats}
                     />
                 </div>
-                <div class="form-group">
-                    <label for="ev-attack">攻撃</label>
-                    <input
-                        id="ev-attack"
-                        type="number"
-                        bind:value={evAttack}
-                        min="0"
-                        max="252"
+
+                <div class="space-y-1">
+                    <label
+                        for="nature"
+                        class="block text-sm font-medium text-accents-5"
+                        >Nature *</label
+                    >
+                    <MasterDataAutocomplete
+                        options={usageStats?.natures || []}
+                        bind:value={nature}
+                        placeholder="Select Nature..."
+                        required={true}
+                        loading={loadingUsageStats}
                     />
                 </div>
-                <div class="form-group">
-                    <label for="ev-defense">防御</label>
-                    <input
-                        id="ev-defense"
-                        type="number"
-                        bind:value={evDefense}
-                        min="0"
-                        max="252"
+
+                <div class="space-y-1">
+                    <label
+                        for="ability"
+                        class="block text-sm font-medium text-accents-5"
+                        >Ability *</label
+                    >
+                    <MasterDataAutocomplete
+                        options={usageStats?.abilities || []}
+                        bind:value={ability}
+                        placeholder="Select Ability..."
+                        required={true}
+                        loading={loadingUsageStats}
                     />
                 </div>
-                <div class="form-group">
-                    <label for="ev-sp-attack">特攻</label>
-                    <input
-                        id="ev-sp-attack"
-                        type="number"
-                        bind:value={evSpAttack}
-                        min="0"
-                        max="252"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="ev-sp-defense">特防</label>
-                    <input
-                        id="ev-sp-defense"
-                        type="number"
-                        bind:value={evSpDefense}
-                        min="0"
-                        max="252"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="ev-speed">素早さ</label>
-                    <input
-                        id="ev-speed"
-                        type="number"
-                        bind:value={evSpeed}
-                        min="0"
-                        max="252"
+
+                <div class="space-y-1">
+                    <label
+                        for="held-item"
+                        class="block text-sm font-medium text-accents-5"
+                        >Held Item</label
+                    >
+                    <MasterDataAutocomplete
+                        options={usageStats?.items || []}
+                        bind:value={heldItem}
+                        placeholder="Select Item..."
+                        loading={loadingUsageStats}
                     />
                 </div>
             </div>
-        </section>
+        </Card>
 
-        <!-- 個体値 -->
-        <section class="form-section">
-            <h3>個体値</h3>
-            <div class="stats-grid">
-                <div class="form-group">
-                    <label for="iv-hp">HP</label>
-                    <input
-                        id="iv-hp"
-                        type="number"
-                        bind:value={ivHp}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="iv-attack">攻撃</label>
-                    <input
-                        id="iv-attack"
-                        type="number"
-                        bind:value={ivAttack}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="iv-defense">防御</label>
-                    <input
-                        id="iv-defense"
-                        type="number"
-                        bind:value={ivDefense}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="iv-sp-attack">特攻</label>
-                    <input
-                        id="iv-sp-attack"
-                        type="number"
-                        bind:value={ivSpAttack}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="iv-sp-defense">特防</label>
-                    <input
-                        id="iv-sp-defense"
-                        type="number"
-                        bind:value={ivSpDefense}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-                <div class="form-group">
-                    <label for="iv-speed">素早さ</label>
-                    <input
-                        id="iv-speed"
-                        type="number"
-                        bind:value={ivSpeed}
-                        min="0"
-                        max="31"
-                    />
-                </div>
-            </div>
-        </section>
-
-        <!-- ボタン -->
-        <div class="form-actions">
-            <button
-                type="button"
-                class="btn-secondary"
-                on:click={() => dispatch("cancel")}
+        <!-- Moves -->
+        <Card>
+            <h3
+                class="text-xl font-bold text-white mb-4 border-b border-accents-2 pb-2"
             >
-                キャンセル
-            </button>
-            <button type="submit" class="btn-primary" disabled={!evValid}>
-                {editMode ? "更新" : "登録"}
-            </button>
+                Moves
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {#each moves as move, i}
+                    <div class="space-y-1">
+                        <label
+                            for="move-{i}"
+                            class="block text-sm font-medium text-accents-5"
+                            >Move {i + 1} {i === 0 ? "*" : ""}</label
+                        >
+                        <MasterDataAutocomplete
+                            options={learnableMoves.length > 0
+                                ? learnableMoves.map((m) => ({
+                                      name: m.name,
+                                      name_ja: m.name_ja || null,
+                                      type: m.type || null,
+                                      percentage: m.usage_rate || 0,
+                                  }))
+                                : usageStats?.moves || []}
+                            bind:value={moves[i]}
+                            placeholder="Select Move..."
+                            required={i === 0}
+                            loading={loadingUsageStats || loadingMoves}
+                        />
+                    </div>
+                {/each}
+            </div>
+        </Card>
+
+        <!-- EVs -->
+        <Card>
+            <div
+                class="flex justify-between items-center mb-4 border-b border-accents-2 pb-2"
+            >
+                <h3 class="text-xl font-bold text-white">
+                    EVs (Effort Values)
+                </h3>
+                <span
+                    class="text-sm font-mono {evValid
+                        ? 'text-green-400'
+                        : 'text-red-400'}">Total: {totalEv}/508</span
+                >
+            </div>
+
+            <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {#each [{ label: "HP", bind: evHp, id: "ev-hp" }, { label: "Attack", bind: evAttack, id: "ev-attack" }, { label: "Defense", bind: evDefense, id: "ev-defense" }, { label: "Sp. Atk", bind: evSpAttack, id: "ev-sp-attack" }, { label: "Sp. Def", bind: evSpDefense, id: "ev-sp-defense" }, { label: "Speed", bind: evSpeed, id: "ev-speed" }] as stat}
+                    <div class="space-y-1">
+                        <label
+                            for={stat.id}
+                            class="block text-xs font-medium text-accents-5 text-center"
+                            >{stat.label}</label
+                        >
+                        <input
+                            id={stat.id}
+                            type="number"
+                            bind:value={stat.bind}
+                            min="0"
+                            max="252"
+                            class="w-full bg-black border border-accents-2 rounded p-1 text-center text-white focus:border-white outline-none"
+                            on:input={(e) => {
+                                // @ts-ignore
+                                stat.bind =
+                                    parseInt(e.currentTarget.value) || 0;
+                                // Force update Svelte reactivity if needed
+                                if (stat.label === "HP") evHp = stat.bind;
+                                else if (stat.label === "Attack")
+                                    evAttack = stat.bind;
+                                else if (stat.label === "Defense")
+                                    evDefense = stat.bind;
+                                else if (stat.label === "Sp. Atk")
+                                    evSpAttack = stat.bind;
+                                else if (stat.label === "Sp. Def")
+                                    evSpDefense = stat.bind;
+                                else if (stat.label === "Speed")
+                                    evSpeed = stat.bind;
+                            }}
+                        />
+                    </div>
+                {/each}
+            </div>
+        </Card>
+
+        <!-- IVs -->
+        <Card>
+            <h3
+                class="text-xl font-bold text-white mb-4 border-b border-accents-2 pb-2"
+            >
+                IVs (Individual Values)
+            </h3>
+            <div class="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {#each [{ label: "HP", bind: ivHp, id: "iv-hp" }, { label: "Attack", bind: ivAttack, id: "iv-attack" }, { label: "Defense", bind: ivDefense, id: "iv-defense" }, { label: "Sp. Atk", bind: ivSpAttack, id: "iv-sp-attack" }, { label: "Sp. Def", bind: ivSpDefense, id: "iv-sp-defense" }, { label: "Speed", bind: ivSpeed, id: "iv-speed" }] as stat}
+                    <div class="space-y-1">
+                        <label
+                            for={stat.id}
+                            class="block text-xs font-medium text-accents-5 text-center"
+                            >{stat.label}</label
+                        >
+                        <input
+                            id={stat.id}
+                            type="number"
+                            bind:value={stat.bind}
+                            min="0"
+                            max="31"
+                            class="w-full bg-accents-1 border border-accents-2 rounded p-1 text-center text-accents-6 focus:border-white outline-none"
+                            on:input={(e) => {
+                                // @ts-ignore
+                                stat.bind =
+                                    parseInt(e.currentTarget.value) || 0;
+                                // Force update IVs
+                                if (stat.label === "HP") ivHp = stat.bind;
+                                else if (stat.label === "Attack")
+                                    ivAttack = stat.bind;
+                                else if (stat.label === "Defense")
+                                    ivDefense = stat.bind;
+                                else if (stat.label === "Sp. Atk")
+                                    ivSpAttack = stat.bind;
+                                else if (stat.label === "Sp. Def")
+                                    ivSpDefense = stat.bind;
+                                else if (stat.label === "Speed")
+                                    ivSpeed = stat.bind;
+                            }}
+                        />
+                    </div>
+                {/each}
+            </div>
+        </Card>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onclick={() => dispatch("cancel")}>
+                Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={!evValid}>
+                {editMode ? "Update Pokemon" : "Save Pokemon"}
+            </Button>
         </div>
     </form>
 </div>
-
-<style>
-    .pokemon-form {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    h2 {
-        margin-bottom: 2rem;
-        color: #333;
-    }
-
-    .form-section {
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-        background: #f9f9f9;
-        border-radius: 8px;
-    }
-
-    .form-section h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        color: #555;
-    }
-
-    .form-group {
-        margin-bottom: 1rem;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 500;
-        color: #666;
-    }
-
-    .form-group input,
-    .form-group select {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 1rem;
-    }
-
-    .form-group input:focus,
-    .form-group select:focus {
-        outline: none;
-        border-color: #4caf50;
-    }
-
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 1rem;
-    }
-
-    .form-actions {
-        display: flex;
-        gap: 1rem;
-        justify-content: flex-end;
-        margin-top: 2rem;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-        padding: 0.75rem 2rem;
-        border: none;
-        border-radius: 4px;
-        font-size: 1rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .btn-primary {
-        background-color: #4caf50;
-        color: white;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-        background-color: #45a049;
-    }
-
-    .btn-primary:disabled {
-        background-color: #ccc;
-        cursor: not-allowed;
-    }
-
-    .btn-secondary {
-        background-color: #f0f0f0;
-        color: #333;
-    }
-
-    .btn-secondary:hover {
-        background-color: #e0e0e0;
-    }
-</style>

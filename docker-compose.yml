@@ -1,64 +1,48 @@
+version: '3.8'
+
 services:
-  # バックエンド（Rust）
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: pokedict-backend
-    ports:
-      - "8080:8080"
+  postgres:
+    image: postgres:15
     environment:
-      - HOST=0.0.0.0
-      - PORT=8080
-      - USE_POSTGRES=true
-      - RUST_LOG=info
-      - DATABASE_URL=postgresql://postgres:password@db:5432/pokedict
-      - JWT_SECRET=${JWT_SECRET:-development_secret_key_please_change}
-    depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - pokedict-network
-
-  # フロントエンド（React + Nginx）
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: pokedict-frontend
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
-    restart: unless-stopped
-    networks:
-      - pokedict-network
-
-  # データベース（PostgreSQL）
-  db:
-    image: postgres:16-alpine
-    container_name: pokedict-db
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_DB=pokedict
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pokedict
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-    networks:
-      - pokedict-network
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend-hono
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      PORT: 8080
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/pokedict
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production-minimum-32-chars}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      ALLOWED_ORIGIN: http://localhost:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend-hono:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8080
 
 volumes:
-  postgres-data:
-
-networks:
-  pokedict-network:
-    driver: bridge
+  postgres_data:

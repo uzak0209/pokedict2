@@ -6,6 +6,8 @@ import type {
     PokemonResponseDto,
     UpdatePokemonRequestDto,
     PokemonErrorResponseDto,
+    LearnableMoveDto,
+    MatchupsDto,
 } from '../types/api';
 
 // Valibotスキーマ定義
@@ -27,7 +29,11 @@ const PokemonResponseSchema = v.object({
     species_id: v.number(),
     fullname: v.string(),
     fullname_jp: v.string(),
+    type1_jp: v.string(),
+    type2_jp: v.optional(v.nullable(v.string())),
     terastal_type: v.string(),
+    terastal_type_jp: v.string(),
+
     ev_hp: v.number(),
     ev_attack: v.number(),
     ev_defense: v.number(),
@@ -41,12 +47,46 @@ const PokemonResponseSchema = v.object({
     iv_special_defense: v.number(),
     iv_speed: v.number(),
     nature: v.string(),
+    nature_jp: v.optional(v.nullable(v.string())),
     ability: v.string(),
+    ability_jp: v.optional(v.nullable(v.string())),
     held_item: v.nullable(v.string()),
+    held_item_jp: v.optional(v.nullable(v.string())),
     moves: v.array(v.string()),
+    moves_jp: v.array(v.nullable(v.string())),
+    moves_types: v.array(v.nullable(v.string())),
 });
 
+
 const PokemonListResponseSchema = v.array(PokemonResponseSchema);
+
+const LearnableMoveSchema = v.object({
+    move_id: v.number(),
+    name: v.string(),
+    name_ja: v.optional(v.nullable(v.string())),
+    type: v.optional(v.nullable(v.string())),
+    power: v.optional(v.nullable(v.number())),
+    accuracy: v.optional(v.nullable(v.number())),
+    pp: v.optional(v.nullable(v.number())),
+    damage_class: v.optional(v.nullable(v.string())),
+    usage_rate: v.optional(v.nullable(v.number())),
+});
+
+const LearnableMoveListSchema = v.array(LearnableMoveSchema);
+
+const MatchupSchema = v.object({
+    opponent_form_id: v.number(),
+    opponent_name: v.string(),
+    opponent_name_ja: v.optional(v.nullable(v.string())),
+    n: v.number(),
+    p: v.number(),
+    d: v.number(),
+});
+
+const MatchupsSchema = v.object({
+    favorable: v.array(MatchupSchema),
+    unfavorable: v.array(MatchupSchema),
+});
 
 /**
  * ポケモンを登録
@@ -55,8 +95,9 @@ export async function createPokemon(
     request: CreatePokemonRequestDto,
     token?: string
 ): Promise<CreatePokemonResponseDto> {
-    return post('/pokemon', request, CreatePokemonResponseSchema, { token }) as unknown as Promise<CreatePokemonResponseDto>;
+    return post('/pokemon', request, PokemonResponseSchema, { token }) as unknown as Promise<CreatePokemonResponseDto>;
 }
+
 
 /**
  * ポケモンを取得
@@ -161,4 +202,30 @@ export async function deletePokemon(
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete pokemon');
     }
+}
+
+/**
+ * ポケモンが習得可能な技リストを取得
+ */
+export async function getLearnableMoves(
+    formId: number,
+    token?: string
+): Promise<LearnableMoveDto[]> {
+    return get(
+        `/pokemon/master/${formId}/moves`,
+        LearnableMoveListSchema,
+        { token }
+    ) as unknown as Promise<LearnableMoveDto[]>;
+}
+
+/**
+ * ポケモンのマッチアップデータを取得
+ */
+export async function getMatchups(
+    formId: number
+): Promise<MatchupsDto> {
+    return get(
+        `/pokemon/master/${formId}/matchups`,
+        MatchupsSchema
+    ) as unknown as Promise<MatchupsDto>;
 }

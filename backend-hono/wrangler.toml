@@ -1,0 +1,18 @@
+name = "pokedict-backend"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+node_compat = true
+
+[env.production]
+name = "pokedict-backend-prod"
+vars = { ENVIRONMENT = "production" }
+
+[env.staging]
+name = "pokedict-backend-staging"
+vars = { ENVIRONMENT = "staging" }
+
+# Environment variables (set via wrangler secret put)
+# - DATABASE_URL
+# - JWT_SECRET
+# - GEMINI_API_KEY
+# - ALLOWED_ORIGIN

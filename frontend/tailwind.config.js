@@ -6,7 +6,22 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['Inter', 'sans-serif'],
+      },
       colors: {
+        background: '#000000',
+        foreground: '#ffffff',
+        accents: {
+          1: '#111',
+          2: '#333',
+          3: '#444',
+          4: '#666',
+          5: '#888',
+          6: '#999',
+          7: '#eaeaea',
+          8: '#fafafa',
+        },
         // Pokemon type colors
         normal: '#A8A878',
         fire: '#F08030',

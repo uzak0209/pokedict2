@@ -3,6 +3,7 @@
     import { getUserPokemon } from "./api/pokemon";
     import { authStore } from "../stores/auth";
     import type { PokemonResponseDto } from "./types/api";
+    import TypeBadge from "./TypeBadge.svelte";
 
     const dispatch = createEventDispatcher<{
         select: PokemonResponseDto;
@@ -64,18 +65,40 @@
                             class="pokemon-item"
                             on:click={() => handleSelect(pokemon)}
                         >
-                            <div class="pokemon-info">
-                                <span class="name"
-                                    >{pokemon.nickname ||
-                                        pokemon.fullname_jp}</span
-                                >
-                                <span class="species"
-                                    >{pokemon.fullname_jp}</span
-                                >
+                            <div class="flex items-center gap-3">
+                                <img
+                                    src={`/icons/pokemon/${pokemon.form_id}.png`}
+                                    alt={pokemon.fullname}
+                                    class="w-10 h-10 pixelated"
+                                />
+                                <div class="pokemon-info">
+                                    <span class="name"
+                                        >{pokemon.nickname ||
+                                            pokemon.fullname_jp}</span
+                                    >
+                                    <span class="species"
+                                        >{pokemon.fullname_jp}</span
+                                    >
+                                </div>
                             </div>
                             <div class="pokemon-details">
-                                <span class="type-badge"
-                                    >{pokemon.terastal_type}</span
+                                <div class="flex gap-1 mb-1">
+                                    <TypeBadge
+                                        type={pokemon.type1 as any}
+                                        size="sm"
+                                    />
+                                    {#if pokemon.type2}
+                                        <TypeBadge
+                                            type={pokemon.type2 as any}
+                                            size="sm"
+                                        />
+                                    {/if}
+                                </div>
+                                <span class="text-xs text-accents-5"
+                                    >Tera: <TypeBadge
+                                        type={pokemon.terastal_type as any}
+                                        size="sm"
+                                    /></span
                                 >
                                 <span class="item"
                                     >{pokemon.held_item || "なし"}</span
@@ -184,14 +207,6 @@
         flex-direction: column;
         align-items: flex-end;
         gap: 0.25rem;
-    }
-
-    .type-badge {
-        font-size: 0.8rem;
-        background: #eee;
-        padding: 2px 6px;
-        border-radius: 4px;
-        color: #555;
     }
 
     .loading,

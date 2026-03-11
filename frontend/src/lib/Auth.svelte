@@ -1,21 +1,24 @@
 <script lang="ts">
-  import { authApi } from '$lib/api/auth';
-  import { authStore } from '../stores/auth';
-  import { ApiError } from '$lib/api/client';
-  
-  let mode: 'login' | 'register' = 'login';
-  let email = '';
-  let password = '';
-  let username = '';
-  let error = '';
+  import { authApi } from "$lib/api/auth";
+  import { authStore } from "../stores/auth";
+  import { ApiError } from "$lib/api/client";
+  import Button from "./components/ui/Button.svelte";
+  import Input from "./components/ui/Input.svelte";
+  import Card from "./components/ui/Card.svelte";
+
+  let mode: "login" | "register" = "login";
+  let email = "";
+  let password = "";
+  let username = "";
+  let error = "";
   let loading = false;
 
   async function handleSubmit() {
-    error = '';
+    error = "";
     loading = true;
 
     try {
-      if (mode === 'register') {
+      if (mode === "register") {
         // 登録
         await authApi.register({ username, email, password });
         // 登録成功後、自動的にログイン
@@ -30,7 +33,7 @@
       if (err instanceof ApiError) {
         error = err.message;
       } else {
-        error = 'エラーが発生しました';
+        error = "エラーが発生しました";
       }
     } finally {
       loading = false;
@@ -38,96 +41,125 @@
   }
 
   function toggleMode() {
-    mode = mode === 'login' ? 'register' : 'login';
-    error = '';
+    mode = mode === "login" ? "register" : "login";
+    error = "";
   }
 </script>
 
-<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-  <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+<div class="min-h-screen flex items-center justify-center p-4">
+  <Card class="w-full max-w-md">
     <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2">
-        {mode === 'login' ? 'ログイン' : 'ユーザー登録'}
+      <!-- Logo icon -->
+      <div class="flex justify-center mb-4">
+        <svg
+          height="40"
+          viewBox="0 0 75 65"
+          fill="white"
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-10 w-auto"
+        >
+          <path d="M37.59.25l36.95 64H.64l36.95-64z" />
+        </svg>
+      </div>
+      <h1 class="text-2xl font-bold text-white mb-2">
+        {mode === "login" ? "Welcome back" : "Create an account"}
       </h1>
-      <p class="text-gray-600">
-        {mode === 'login' ? 'ポケモン辞書へようこそ' : '新しいアカウントを作成'}
+      <p class="text-accents-5">
+        {mode === "login"
+          ? "Enter your details to sign in."
+          : "Enter your details to register."}
       </p>
     </div>
 
-    <form on:submit|preventDefault={handleSubmit} class="space-y-4">
-      {#if mode === 'register'}
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      class="space-y-4"
+    >
+      {#if mode === "register"}
         <div>
-          <label for="username" class="block text-sm font-medium text-gray-700 mb-1">
-            ユーザー名
+          <label
+            for="username"
+            class="block text-sm font-medium text-accents-5 mb-1"
+          >
+            Username
           </label>
-          <input
+          <Input
             id="username"
             type="text"
             bind:value={username}
             required
             minlength="3"
             maxlength="50"
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-            placeholder="ユーザー名を入力"
+            placeholder="Username"
           />
         </div>
       {/if}
 
       <div>
-        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
-          メールアドレス
+        <label
+          for="email"
+          class="block text-sm font-medium text-accents-5 mb-1"
+        >
+          Email
         </label>
-        <input
+        <Input
           id="email"
           type="email"
           bind:value={email}
           required
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
           placeholder="email@example.com"
         />
       </div>
 
       <div>
-        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-          パスワード
+        <label
+          for="password"
+          class="block text-sm font-medium text-accents-5 mb-1"
+        >
+          Password
         </label>
-        <input
+        <Input
           id="password"
           type="password"
           bind:value={password}
           required
           minlength="8"
-          class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-          placeholder="8文字以上のパスワード"
+          placeholder="••••••••"
         />
       </div>
 
       {#if error}
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+        <div
+          class="bg-red-900/20 border border-red-900/50 text-red-500 px-4 py-3 rounded-lg text-sm"
+        >
           {error}
         </div>
       {/if}
 
-      <button
-        type="submit"
-        disabled={loading}
-        class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
+      <Button type="submit" disabled={loading} class="w-full">
         {#if loading}
-          処理中...
+          Processing...
         {:else}
-          {mode === 'login' ? 'ログイン' : '登録'}
+          {mode === "login" ? "Sign In" : "Sign Up"}
         {/if}
-      </button>
+      </Button>
     </form>
 
     <div class="mt-6 text-center">
-      <button
-        on:click={toggleMode}
-        class="text-blue-600 hover:text-blue-800 font-medium transition"
-      >
-        {mode === 'login' ? 'アカウントを作成' : 'ログインに戻る'}
-      </button>
+      <p class="text-accents-5 text-sm">
+        {mode === "login"
+          ? "Don't have an account?"
+          : "Already have an account?"}
+        <button
+          onclick={toggleMode}
+          class="text-white hover:underline font-medium ml-1 bg-transparent border-none cursor-pointer"
+        >
+          {mode === "login" ? "Sign Up" : "Sign In"}
+        </button>
+      </p>
     </div>
-  </div>
+  </Card>
 </div>

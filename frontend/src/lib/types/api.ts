@@ -55,10 +55,69 @@ export interface ErrorResponseDto {
 	error_code: string;
 }
 
+/** 習得可能な技DTO */
+export interface LearnableMoveDto {
+	move_id: number;
+	name: string;
+	name_ja?: string;
+	type?: string;
+	power?: number;
+	accuracy?: number;
+	pp?: number;
+	damage_class?: string;
+	usage_rate?: number;
+}
+
 /** ログインリクエストDTO */
 export interface LoginRequestDto {
 	email: string;
 	password: string;
+}
+
+/** マッチアップDTO（有利/不利情報） */
+export interface MatchupDto {
+	/** 対戦相手のform_id */
+	opponent_form_id: number;
+	/** 対戦相手の英語名 */
+	opponent_name: string;
+	/** 対戦相手の日本語名 */
+	opponent_name_ja?: string;
+	/** 対戦回数 */
+	n: number;
+	/** KO/Switch確率（0-1） */
+	p: number;
+	/** 標準偏差 */
+	d: number;
+}
+
+/** マトリクス表示用のポケモン情報 */
+export interface MatrixPokemonDto {
+	form_id: number;
+	name: string;
+	name_ja?: string;
+	is_setup: boolean;
+}
+
+/** マトリクスのセル情報 */
+export interface MatrixCellDto {
+	form_id: number;
+	opponent_form_id: number;
+	p: number;
+	n: number;
+}
+
+/** マッチアップマトリクスDTO */
+export interface MatchupMatrixDto {
+	pokemon: MatrixPokemonDto[];
+	cells: MatrixCellDto[];
+}
+
+/** マッチアップ一覧DTO */
+export interface MatchupsDto {
+	/** 有利なマッチアップ（p > 0.5） */
+	favorable: MatchupDto[];
+	/** 不利なマッチアップ（p < 0.5） */
+	unfavorable: MatchupDto[];
 }
 
 /** ポケモンデータDTO */
@@ -104,30 +163,15 @@ export interface PokemonMasterDto {
 	speed: number;
 	usage?: number;
 	raw_count?: number;
+	is_setup?: boolean;
 }
 
-/** ポケモンマスタデータDTO */
-export interface PokemonMasterDto {
+/** ポケモンレスポンスDTO */
+export interface PokemonResponseDto {
+	fullname: string;
+	fullname_jp: string;
 	form_id: number;
 	species_id: number;
-	fullname: string;
-	fullname_ja?: string;
-	type1: string;
-	type2?: string;
-	hp: number;
-	attack: number;
-	defense: number;
-	sp_attack: number;
-	sp_defense: number;
-	speed: number;
-	usage?: number;
-	raw_count?: number;
-}
-
-/** ポケモンマスタデータレスポンス */
-export interface PokemonMasterResponseDto {
-	pokemon: PokemonMasterDto[];
-	total: number;
 }
 
 /** ポケモンレスポンスDTO */
@@ -139,7 +183,12 @@ export interface PokemonResponseDto {
 	species_id: number;
 	fullname: string;
 	fullname_jp: string;
+	type1: string;
+	type2?: string;
+	type1_jp: string;
+	type2_jp?: string;
 	terastal_type: string;
+	terastal_type_jp: string;
 	ev_hp: number;
 	ev_attack: number;
 	ev_defense: number;
@@ -153,35 +202,31 @@ export interface PokemonResponseDto {
 	iv_special_defense: number;
 	iv_speed: number;
 	nature: string;
+	nature_jp?: string;
 	ability: string;
+	ability_jp?: string;
 	held_item?: string;
+	held_item_jp?: string;
 	moves: string[];
+	moves_jp: string[];
+	moves_types: string[];
 }
 
-/** ポケモンレスポンスDTO */
-/** ポケモンレスポンスDTO */
-export interface PokemonResponseDto {
-	fullname: string;
-	fullname_jp: string;
+/** 使用率詳細データDTO */
+export interface UsageDetailDto {
+	name: string;
+	name_ja?: string;
+	percentage: number;
+}
+
+/** ポケモン使用率統計DTO */
+export interface PokemonUsageStatsDto {
 	form_id: number;
-	species_id: number;
-	terastal_type: string;
-	ev_hp: number;
-	ev_attack: number;
-	ev_defense: number;
-	ev_special_attack: number;
-	ev_special_defense: number;
-	ev_speed: number;
-	iv_hp: number;
-	iv_attack: number;
-	iv_defense: number;
-	iv_special_attack: number;
-	iv_special_defense: number;
-	iv_speed: number;
-	nature: string;
-	ability: string;
-	held_item?: string;
-	moves: string[];
+	moves: UsageDetailDto[];
+	items: UsageDetailDto[];
+	abilities: UsageDetailDto[];
+	tera_types: UsageDetailDto[];
+	natures: UsageDetailDto[];
 }
 
 /** リフレッシュリクエストDTO */
@@ -210,6 +255,26 @@ export interface RegisterResponseDto {
 	email: string;
 }
 
+export interface SuggestedPokemonDto {
+	form_id: number;
+	name: string;
+	name_ja?: string;
+	is_setup: boolean;
+	score: number;
+	covered_threats: MatrixPokemonDto[];
+}
+
+/** LLMによる説明付きの提案ポケモン */
+export interface SuggestedPokemonWithReasoningDto {
+	form_id: number;
+	name: string;
+	name_ja?: string;
+	is_setup: boolean;
+	score: number;
+	covered_threats: MatrixPokemonDto[];
+	reasoning?: string;
+}
+
 /** エラーレスポンスDTO (Team用) */
 export interface TeamErrorResponseDto {
 	error: string;
@@ -221,6 +286,19 @@ export interface TeamResponseDto {
 	owner_id: string;
 	team_name: string;
 	pokemon: PokemonResponseDto[];
+}
+
+export interface TeamSuggestionResponseDto {
+	all_threats: MatrixPokemonDto[];
+	axis_pokemon: SuggestedPokemonDto[];
+	suggestions: SuggestedPokemonDto[];
+}
+
+/** LLM説明付きチーム提案レスポンス */
+export interface TeamSuggestionWithReasoningResponseDto {
+	all_threats: MatrixPokemonDto[];
+	axis_pokemon: SuggestedPokemonDto[];
+	suggestions: SuggestedPokemonWithReasoningDto[];
 }
 
 /** トークンレスポンスDTO (refresh_tokenはCookieで返すため除外) */

@@ -1,0 +1,9 @@
+# Wrangler development environment variables
+# Copy this file to .dev.vars for local Wrangler development
+# DO NOT commit .dev.vars to git
+
+DATABASE_URL=postgresql://postgres:password@localhost:5432/pokedict
+JWT_SECRET=your-secret-key-change-this-in-production-minimum-32-characters-long
+ALLOWED_ORIGIN=http://localhost:5173
+GEMINI_API_KEY=
+ENVIRONMENT=development

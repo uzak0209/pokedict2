@@ -2,6 +2,11 @@
     import { onMount } from "svelte";
     import { getPokemon, updatePokemon } from "./api/pokemon";
     import PokemonForm from "./PokemonForm.svelte";
+    import Button from "./components/ui/Button.svelte";
+    import Card from "./components/ui/Card.svelte";
+    import TypeBadge from "./TypeBadge.svelte";
+    import { TYPE_COLORS } from "../data/typeColors";
+    import type { PokemonType } from "../types/pokemon";
     import type {
         PokemonResponseDto as PokemonResponse,
         UpdatePokemonRequestDto,
@@ -25,7 +30,7 @@
         try {
             pokemon = await getPokemon(pokemonId, accessToken);
         } catch (e: any) {
-            error = e.message || "ポケモンの読み込みに失敗しました";
+            error = e.message || "Failed to load Pokemon";
         } finally {
             loading = false;
         }
@@ -36,249 +41,332 @@
 
         const request = event.detail;
         try {
-            pokemon = await updatePokemon(
-                pokemonId,
-                request,
-                accessToken,
-            );
+            pokemon = await updatePokemon(pokemonId, request, accessToken);
             editMode = false;
-            alert("更新しました");
+            alert("Updated successfully");
         } catch (e: any) {
-            alert("更新に失敗しました: " + (e.message || "不明なエラー"));
+            alert("Update failed: " + (e.message || "Unknown error"));
         }
     }
 
-    function formatStats(
-        pokemon: PokemonResponse,
-        statType: "ev" | "iv",
-    ): string {
-        if (statType === "ev") {
-            return `HP: ${pokemon.ev_hp}, 攻撃: ${pokemon.ev_attack}, 防御: ${pokemon.ev_defense}, 特攻: ${pokemon.ev_special_attack}, 特防: ${pokemon.ev_special_defense}, 素早さ: ${pokemon.ev_speed}`;
-        } else {
-            return `HP: ${pokemon.iv_hp}, 攻撃: ${pokemon.iv_attack}, 防御: ${pokemon.iv_defense}, 特攻: ${pokemon.iv_special_attack}, 特防: ${pokemon.iv_special_defense}, 素早さ: ${pokemon.iv_speed}`;
-        }
+    function getMoveColor(type: string | null | undefined): string {
+        if (!type) return "#333";
+        const capitalizedType =
+            type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+        return TYPE_COLORS[capitalizedType as PokemonType] || "#333";
     }
 </script>
 
-<div class="pokemon-detail">
+<div class="max-w-4xl mx-auto py-6">
     {#if loading}
-        <div class="loading">読み込み中...</div>
+        <div class="text-center py-12 text-accents-5">Loading...</div>
     {:else if error}
-        <div class="error">{error}</div>
-        <button
-            class="btn-primary"
-            on:click={() => (window.location.href = "#/pokemon")}
-        >
-            一覧に戻る
-        </button>
+        <div class="text-center py-12 text-red-500 mb-4">{error}</div>
+        <div class="text-center">
+            <Button
+                variant="secondary"
+                onclick={() => (window.location.href = "#/pokemon")}
+            >
+                Back to List
+            </Button>
+        </div>
     {:else if pokemon && !editMode}
-        <div class="detail-view">
-            <div class="header">
-                <h2>{pokemon.nickname || pokemon.fullname_jp}</h2>
-                <div class="header-actions">
-                    <button
-                        class="btn-secondary"
-                        on:click={() => (editMode = true)}>編集</button
+        <div class="space-y-6">
+            <div
+                class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+            >
+                <div class="flex items-center gap-4">
+                    <img
+                        src={`/icons/pokemon/${pokemon.form_id}.png`}
+                        alt={pokemon.fullname}
+                        class="w-16 h-16 pixelated"
+                    />
+                    <div>
+                        <h2 class="text-3xl font-bold text-white">
+                            {pokemon.nickname || pokemon.fullname_jp}
+                        </h2>
+                        {#if pokemon.nickname}
+                            <div class="text-accents-5 mt-1">
+                                Species: {pokemon.fullname_jp}
+                            </div>
+                        {/if}
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <Button
+                        variant="secondary"
+                        onclick={() => (editMode = true)}>Edit</Button
                     >
-                    <button
-                        class="btn-secondary"
-                        on:click={() => (window.location.href = "#/pokemon")}
+                    <Button
+                        variant="ghost"
+                        onclick={() => (window.location.href = "#/pokemon")}
+                        >Back</Button
                     >
-                        一覧に戻る
-                    </button>
                 </div>
             </div>
 
-            {#if pokemon.nickname}
-                <div class="species-name">種族: {pokemon.fullname_jp}</div>
-            {/if}
-
-            <section class="detail-section">
-                <h3>基本情報</h3>
-                <div class="info-grid">
-                    <div class="info-item">
-                        <span class="label">性格:</span>
-                        <span>{pokemon.nature}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">特性:</span>
-                        <span>{pokemon.ability}</span>
-                    </div>
-                    <div class="info-item">
-                        <span class="label">テラスタイプ:</span>
-                        <span>{pokemon.terastal_type}</span>
-                    </div>
-                    {#if pokemon.held_item}
-                        <div class="info-item">
-                            <span class="label">持ち物:</span>
-                            <span>{pokemon.held_item}</span>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Basic Info -->
+                <Card>
+                    <h3 class="text-xl font-bold text-white mb-4">
+                        Basic Info
+                    </h3>
+                    <div class="space-y-3 text-sm">
+                        <div
+                            class="flex justify-between border-b border-accents-2 pb-2"
+                        >
+                            <span class="text-accents-5">Type</span>
+                            <div class="flex gap-2">
+                                <TypeBadge
+                                    type={pokemon.type1 as PokemonType}
+                                />
+                                {#if pokemon.type2}
+                                    <TypeBadge
+                                        type={pokemon.type2 as PokemonType}
+                                    />
+                                {:else if pokemon.type2_jp}
+                                    <!-- Fallback if type2 (EN) missing but type2_jp exists -->
+                                    <span
+                                        class="px-3 py-1 rounded-md font-bold text-white shadow-sm bg-gray-500"
+                                        >{pokemon.type2_jp}</span
+                                    >
+                                {/if}
+                            </div>
                         </div>
-                    {/if}
-                </div>
-            </section>
-
-            <section class="detail-section">
-                <h3>技</h3>
-                <div class="moves-list">
-                    {#each pokemon.moves as move, i}
-                        <div class="move-item">
-                            <span class="move-number">{i + 1}.</span>
-                            <span>{move}</span>
+                        <div
+                            class="flex justify-between border-b border-accents-2 pb-2"
+                        >
+                            <span class="text-accents-5">Nature</span>
+                            <span class="text-white"
+                                >{pokemon.nature_jp ?? pokemon.nature}</span
+                            >
                         </div>
-                    {/each}
-                </div>
-            </section>
-
-            <section class="detail-section">
-                <h3>努力値</h3>
-                <div class="stats-display">
-                    <div class="stat-bar">
-                        <span class="stat-label">HP</span>
-                        <div class="bar">
+                        <div
+                            class="flex justify-between border-b border-accents-2 pb-2"
+                        >
+                            <span class="text-accents-5">Ability</span>
+                            <span class="text-white"
+                                >{pokemon.ability_jp ?? pokemon.ability}</span
+                            >
+                        </div>
+                        <div
+                            class="flex justify-between border-b border-accents-2 pb-2"
+                        >
+                            <span class="text-accents-5">Tera Type</span>
+                            <span class="text-white"
+                                >{pokemon.terastal_type_jp ??
+                                    pokemon.terastal_type}</span
+                            >
+                        </div>
+                        {#if pokemon.held_item}
                             <div
-                                class="bar-fill"
+                                class="flex justify-between border-b border-accents-2 pb-2"
+                            >
+                                <span class="text-accents-5">Item</span>
+                                <span class="text-white"
+                                    >{pokemon.held_item_jp ??
+                                        pokemon.held_item}</span
+                                >
+                            </div>
+                        {/if}
+                    </div>
+                </Card>
+
+                <!-- Moves -->
+                <Card>
+                    <h3 class="text-xl font-bold text-white mb-4">Moves</h3>
+                    <div class="text-xs text-accents-5 mb-2">
+                        DEBUG: {JSON.stringify(pokemon.moves_types)}
+                    </div>
+                    <div class="space-y-2">
+                        {#each pokemon.moves as move, i}
+                            <div
+                                class="flex items-center gap-3 p-2 rounded bg-accents-1 border border-accents-2"
+                            >
+                                <span
+                                    class="text-accents-5 font-mono text-xs w-4"
+                                    >{i + 1}.</span
+                                >
+                                <span
+                                    class="text-white font-medium px-2 py-0.5 rounded text-sm shadow-sm"
+                                    style="background-color: {getMoveColor(
+                                        pokemon.moves_types?.[i],
+                                    )}">{pokemon.moves_jp?.[i] ?? move}</span
+                                >
+                            </div>
+                        {/each}
+                    </div>
+                </Card>
+            </div>
+
+            <!-- EVs -->
+            <Card>
+                <h3 class="text-xl font-bold text-white mb-4">
+                    EVs (Effort Values)
+                </h3>
+                <div class="space-y-4">
+                    <!-- HP -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5">HP</span>
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
+                            <div
+                                class="h-full bg-green-500 rounded-full"
                                 style="width: {(pokemon.ev_hp / 252) * 100}%"
                             ></div>
                         </div>
-                        <span class="stat-value">{pokemon.ev_hp}</span>
+                        <span class="w-8 text-right font-mono text-white"
+                            >{pokemon.ev_hp}</span
+                        >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">攻撃</span>
-                        <div class="bar">
+                    <!-- Attack -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5">Attack</span
+                        >
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
                             <div
-                                class="bar-fill"
+                                class="h-full bg-green-500 rounded-full"
                                 style="width: {(pokemon.ev_attack / 252) *
                                     100}%"
                             ></div>
                         </div>
-                        <span class="stat-value">{pokemon.ev_attack}</span>
+                        <span class="w-8 text-right font-mono text-white"
+                            >{pokemon.ev_attack}</span
+                        >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">防御</span>
-                        <div class="bar">
+                    <!-- Defense -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5"
+                            >Defense</span
+                        >
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
                             <div
-                                class="bar-fill"
+                                class="h-full bg-green-500 rounded-full"
                                 style="width: {(pokemon.ev_defense / 252) *
                                     100}%"
                             ></div>
                         </div>
-                        <span class="stat-value">{pokemon.ev_defense}</span>
+                        <span class="w-8 text-right font-mono text-white"
+                            >{pokemon.ev_defense}</span
+                        >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">特攻</span>
-                        <div class="bar">
+                    <!-- Sp. Atk -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5"
+                            >Sp. Atk</span
+                        >
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
                             <div
-                                class="bar-fill"
+                                class="h-full bg-green-500 rounded-full"
                                 style="width: {(pokemon.ev_special_attack /
                                     252) *
                                     100}%"
                             ></div>
                         </div>
-                        <span class="stat-value"
+                        <span class="w-8 text-right font-mono text-white"
                             >{pokemon.ev_special_attack}</span
                         >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">特防</span>
-                        <div class="bar">
+                    <!-- Sp. Def -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5"
+                            >Sp. Def</span
+                        >
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
                             <div
-                                class="bar-fill"
+                                class="h-full bg-green-500 rounded-full"
                                 style="width: {(pokemon.ev_special_defense /
                                     252) *
                                     100}%"
                             ></div>
                         </div>
-                        <span class="stat-value"
+                        <span class="w-8 text-right font-mono text-white"
                             >{pokemon.ev_special_defense}</span
                         >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">素早さ</span>
-                        <div class="bar">
+                    <!-- Speed -->
+                    <div class="flex items-center gap-4 text-sm">
+                        <span class="w-16 font-bold text-accents-5">Speed</span>
+                        <div
+                            class="flex-1 h-2 bg-accents-2 rounded-full overflow-hidden"
+                        >
                             <div
-                                class="bar-fill"
+                                class="h-full bg-blue-500 rounded-full"
                                 style="width: {(pokemon.ev_speed / 252) * 100}%"
                             ></div>
                         </div>
-                        <span class="stat-value">{pokemon.ev_speed}</span>
+                        <span class="w-8 text-right font-mono text-white"
+                            >{pokemon.ev_speed}</span
+                        >
                     </div>
                 </div>
-            </section>
+            </Card>
 
-            <section class="detail-section">
-                <h3>個体値</h3>
-                <div class="stats-display">
-                    <div class="stat-bar">
-                        <span class="stat-label">HP</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_hp / 31) * 100}%"
-                            ></div>
+            <!-- IVs (Simplified display) -->
+            <Card>
+                <h3 class="text-xl font-bold text-white mb-4">
+                    IVs (Individual Values)
+                </h3>
+                <div class="grid grid-cols-3 md:grid-cols-6 gap-4 text-center">
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">HP</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_hp}
                         </div>
-                        <span class="stat-value">{pokemon.iv_hp}</span>
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">攻撃</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_attack / 31) * 100}%"
-                            ></div>
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">Atk</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_attack}
                         </div>
-                        <span class="stat-value">{pokemon.iv_attack}</span>
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">防御</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_defense / 31) *
-                                    100}%"
-                            ></div>
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">Def</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_defense}
                         </div>
-                        <span class="stat-value">{pokemon.iv_defense}</span>
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">特攻</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_special_attack /
-                                    31) *
-                                    100}%"
-                            ></div>
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">SpA</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_special_attack}
                         </div>
-                        <span class="stat-value"
-                            >{pokemon.iv_special_attack}</span
-                        >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">特防</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_special_defense /
-                                    31) *
-                                    100}%"
-                            ></div>
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">SpD</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_special_defense}
                         </div>
-                        <span class="stat-value"
-                            >{pokemon.iv_special_defense}</span
-                        >
                     </div>
-                    <div class="stat-bar">
-                        <span class="stat-label">素早さ</span>
-                        <div class="bar">
-                            <div
-                                class="bar-fill iv"
-                                style="width: {(pokemon.iv_speed / 31) * 100}%"
-                            ></div>
+                    <div
+                        class="bg-accents-1 p-2 rounded border border-accents-2"
+                    >
+                        <div class="text-accents-5 text-xs mb-1">Spe</div>
+                        <div class="text-white font-mono font-bold">
+                            {pokemon.iv_speed}
                         </div>
-                        <span class="stat-value">{pokemon.iv_speed}</span>
                     </div>
                 </div>
-            </section>
+            </Card>
         </div>
     {:else if pokemon && editMode}
         <PokemonForm
@@ -289,162 +377,3 @@
         />
     {/if}
 </div>
-
-<style>
-    .pokemon-detail {
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .loading,
-    .error {
-        text-align: center;
-        padding: 2rem;
-        font-size: 1.2rem;
-    }
-
-    .error {
-        color: #d32f2f;
-    }
-
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-
-    .header h2 {
-        margin: 0;
-        color: #333;
-    }
-
-    .header-actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .species-name {
-        color: #666;
-        font-size: 1.1rem;
-        margin-bottom: 2rem;
-    }
-
-    .detail-section {
-        margin-bottom: 2rem;
-        padding: 1.5rem;
-        background: #f9f9f9;
-        border-radius: 8px;
-    }
-
-    .detail-section h3 {
-        margin-top: 0;
-        margin-bottom: 1rem;
-        color: #555;
-    }
-
-    .info-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-    }
-
-    .info-item {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .label {
-        font-weight: 600;
-        color: #555;
-    }
-
-    .moves-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-    }
-
-    .move-item {
-        padding: 0.75rem;
-        background: white;
-        border-radius: 4px;
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .move-number {
-        font-weight: 600;
-        color: #666;
-    }
-
-    .stats-display {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .stat-bar {
-        display: grid;
-        grid-template-columns: 80px 1fr 60px;
-        align-items: center;
-        gap: 1rem;
-    }
-
-    .stat-label {
-        font-weight: 600;
-        color: #555;
-    }
-
-    .bar {
-        height: 24px;
-        background: #e0e0e0;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-
-    .bar-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #4caf50, #8bc34a);
-        transition: width 0.3s;
-    }
-
-    .bar-fill.iv {
-        background: linear-gradient(90deg, #2196f3, #64b5f6);
-    }
-
-    .stat-value {
-        text-align: right;
-        font-weight: 600;
-        color: #333;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .btn-primary {
-        background-color: #4caf50;
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background-color: #45a049;
-    }
-
-    .btn-secondary {
-        background-color: #f0f0f0;
-        color: #333;
-    }
-
-    .btn-secondary:hover {
-        background-color: #e0e0e0;
-    }
-</style>

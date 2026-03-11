@@ -4,7 +4,7 @@
 
     export let value: PokemonMasterDto | null = null;
     export let pokemonList: PokemonMasterDto[] = [];
-    export let placeholder: string = "ポケモンを検索...";
+    export let placeholder: string = "Search Pokemon...";
     export let required: boolean = false;
 
     let inputValue: string = value?.fullname_ja || value?.fullname || "";
@@ -20,18 +20,20 @@
 
     function filterPokemon(query: string) {
         if (!query) {
-            filteredPokemon = pokemonList.slice(0, 50); // 最初の50件を表示
+            filteredPokemon = pokemonList.slice(0, 50); // Show first 50
             return;
         }
 
         const lowerQuery = query.toLowerCase();
         filteredPokemon = pokemonList
             .filter((p) => {
-                const jaMatch = p.fullname_ja?.toLowerCase().includes(lowerQuery);
+                const jaMatch = p.fullname_ja
+                    ?.toLowerCase()
+                    .includes(lowerQuery);
                 const enMatch = p.fullname.toLowerCase().includes(lowerQuery);
                 return jaMatch || enMatch;
             })
-            .slice(0, 50); // 最大50件まで表示
+            .slice(0, 50); // Limit to 50
     }
 
     function handleInput(event: Event) {
@@ -72,7 +74,10 @@
                 break;
             case "Enter":
                 event.preventDefault();
-                if (highlightedIndex >= 0 && filteredPokemon[highlightedIndex]) {
+                if (
+                    highlightedIndex >= 0 &&
+                    filteredPokemon[highlightedIndex]
+                ) {
                     selectPokemon(filteredPokemon[highlightedIndex]);
                 }
                 break;
@@ -89,7 +94,7 @@
     }
 
     function handleBlur() {
-        // ちょっと遅延させて、クリックイベントが先に発火するようにする
+        // Delay to allow click event to fire
         setTimeout(() => {
             isOpen = false;
             highlightedIndex = -1;
@@ -101,7 +106,7 @@
     });
 </script>
 
-<div class="pokemon-autocomplete">
+<div class="pokemon-autocomplete relative w-full">
     <input
         type="text"
         bind:value={inputValue}
@@ -111,38 +116,48 @@
         on:blur={handleBlur}
         {placeholder}
         {required}
-        class="autocomplete-input"
+        class="w-full bg-black border border-accents-2 rounded p-2 text-white focus:border-white outline-none transition-colors"
         autocomplete="off"
     />
 
     {#if isOpen && filteredPokemon.length > 0}
-        <div class="autocomplete-dropdown">
+        <div
+            class="absolute top-full left-0 right-0 max-h-[300px] overflow-y-auto bg-black border border-accents-2 rounded-md shadow-lg z-50 mt-1"
+        >
             {#each filteredPokemon as pokemon, index (pokemon.form_id)}
                 <button
                     type="button"
-                    class="autocomplete-item"
-                    class:highlighted={index === highlightedIndex}
+                    class="w-full p-3 border-b border-accents-2 last:border-0 text-left flex justify-between items-center transition-colors
+                    {index === highlightedIndex
+                        ? 'bg-accents-1'
+                        : 'hover:bg-accents-1'}"
                     on:click={() => selectPokemon(pokemon)}
                 >
-                    <div class="pokemon-info">
-                        <span class="pokemon-name">
+                    <div class="flex flex-col gap-0.5">
+                        <span class="font-bold text-white text-sm">
                             {pokemon.fullname_ja || pokemon.fullname}
                         </span>
                         {#if pokemon.fullname_ja && pokemon.fullname !== pokemon.fullname_ja}
-                            <span class="pokemon-name-en">
+                            <span class="text-xs text-accents-5">
                                 ({pokemon.fullname})
                             </span>
                         {/if}
                         {#if pokemon.usage}
-                            <span class="pokemon-usage">
-                                使用率: {(pokemon.usage * 100).toFixed(2)}%
+                            <span class="text-xs text-green-400">
+                                Usage: {(pokemon.usage * 100).toFixed(2)}%
                             </span>
                         {/if}
                     </div>
-                    <div class="pokemon-types">
-                        <span class="type-badge">{pokemon.type1}</span>
+                    <div class="flex gap-1">
+                        <span
+                            class="px-2 py-0.5 rounded-full text-xs bg-accents-2 text-white capitalize"
+                            >{pokemon.type1}</span
+                        >
                         {#if pokemon.type2}
-                            <span class="type-badge">{pokemon.type2}</span>
+                            <span
+                                class="px-2 py-0.5 rounded-full text-xs bg-accents-2 text-white capitalize"
+                                >{pokemon.type2}</span
+                            >
                         {/if}
                     </div>
                 </button>
@@ -152,91 +167,5 @@
 </div>
 
 <style>
-    .pokemon-autocomplete {
-        position: relative;
-        width: 100%;
-    }
-
-    .autocomplete-input {
-        width: 100%;
-        padding: 0.5rem;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        font-size: 1rem;
-        outline: none;
-        transition: border-color 0.2s;
-    }
-
-    .autocomplete-input:focus {
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .autocomplete-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        max-height: 300px;
-        overflow-y: auto;
-        background: white;
-        border: 1px solid #d1d5db;
-        border-radius: 0.375rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        z-index: 1000;
-        margin-top: 0.25rem;
-    }
-
-    .autocomplete-item {
-        width: 100%;
-        padding: 0.75rem;
-        border: none;
-        background: white;
-        text-align: left;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        transition: background-color 0.15s;
-    }
-
-    .autocomplete-item:hover,
-    .autocomplete-item.highlighted {
-        background-color: #f3f4f6;
-    }
-
-    .pokemon-info {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-    }
-
-    .pokemon-name {
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .pokemon-name-en {
-        font-size: 0.875rem;
-        color: #6b7280;
-    }
-
-    .pokemon-usage {
-        font-size: 0.75rem;
-        color: #9ca3af;
-    }
-
-    .pokemon-types {
-        display: flex;
-        gap: 0.25rem;
-    }
-
-    .type-badge {
-        padding: 0.125rem 0.5rem;
-        background-color: #e5e7eb;
-        color: #374151;
-        font-size: 0.75rem;
-        border-radius: 9999px;
-        text-transform: capitalize;
-    }
+    /* Scoped styles removed in favor of Tailwind classes in template */
 </style>

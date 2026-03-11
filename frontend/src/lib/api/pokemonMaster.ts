@@ -28,6 +28,8 @@ const PokemonMasterResponseSchema = v.object({
 // Usage Stats Schemas
 const UsageDetailSchema = v.object({
     name: v.string(),
+    name_ja: v.nullable(v.string()),
+    type: v.optional(v.nullable(v.string())),
     percentage: v.number(),
 });
 
@@ -47,14 +49,14 @@ export type PokemonUsageStatsDto = v.InferOutput<typeof PokemonUsageStatsSchema>
  * 全ポケモンマスタデータを取得（使用率順）
  */
 export async function getAllPokemonMaster(): Promise<PokemonMasterResponseDto> {
-    return get('/pokemon/master', PokemonMasterResponseSchema);
+    return get('/pokemon/master', PokemonMasterResponseSchema) as unknown as Promise<PokemonMasterResponseDto>;
 }
 
 /**
  * 使用率トップポケモンを取得
  */
 export async function getTopPokemonMaster(limit: number = 50): Promise<PokemonMasterResponseDto> {
-    return get(`/pokemon/master/top?limit=${limit}`, PokemonMasterResponseSchema);
+    return get(`/pokemon/master/top?limit=${limit}`, PokemonMasterResponseSchema) as unknown as Promise<PokemonMasterResponseDto>;
 }
 
 /**

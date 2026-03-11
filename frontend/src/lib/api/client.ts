@@ -214,6 +214,119 @@ export async function put<T extends v.GenericSchema, B>(
     return handleResponse(response, responseSchema);
 }
 
+// --- Team Suggestion Schemas ---
+
+export const MatrixPokemonSchema = v.object({
+    form_id: v.number(),
+    name: v.string(),
+    name_ja: v.nullable(v.string()),
+    is_setup: v.boolean(),
+});
+
+export const SuggestedPokemonSchema = v.object({
+    form_id: v.number(),
+    name: v.string(),
+    name_ja: v.nullable(v.string()),
+    is_setup: v.boolean(),
+    score: v.number(),
+    covered_threats: v.array(MatrixPokemonSchema),
+});
+
+export const TeamSuggestionResponseSchema = v.object({
+    all_threats: v.array(MatrixPokemonSchema),
+    axis_pokemon: v.array(SuggestedPokemonSchema),
+    suggestions: v.array(SuggestedPokemonSchema),
+});
+
+export const SuggestedPokemonWithReasoningSchema = v.object({
+    form_id: v.number(),
+    name: v.string(),
+    name_ja: v.nullable(v.string()),
+    is_setup: v.boolean(),
+    score: v.number(),
+    covered_threats: v.array(MatrixPokemonSchema),
+    reasoning: v.nullable(v.string()),
+});
+
+export const TeamSuggestionWithReasoningResponseSchema = v.object({
+    all_threats: v.array(MatrixPokemonSchema),
+    axis_pokemon: v.array(SuggestedPokemonSchema),
+    suggestions: v.array(SuggestedPokemonWithReasoningSchema),
+});
+
+export type MatrixPokemon = v.InferOutput<typeof MatrixPokemonSchema>;
+export type SuggestedPokemon = v.InferOutput<typeof SuggestedPokemonSchema>;
+export type TeamSuggestionResponse = v.InferOutput<typeof TeamSuggestionResponseSchema>;
+export type SuggestedPokemonWithReasoning = v.InferOutput<typeof SuggestedPokemonWithReasoningSchema>;
+export type TeamSuggestionWithReasoningResponse = v.InferOutput<typeof TeamSuggestionWithReasoningResponseSchema>;
+
+// --- Matchup Correction API ---
+
+export const SaveMatchupOverrideRequestSchema = v.object({
+    form_id: v.number(),
+    opponent_form_id: v.number(),
+    judgment: v.number(), // 1: Win, -1: Lose, 0: Even
+});
+
+export async function saveMatchupOverride(token: string, form_id: number, opponent_form_id: number, judgment: number): Promise<void> {
+
+    // 204 No Content response expected (or 200 OK empty)
+    // post handles empty response if we pass a schema processing void?
+    // Using v.any() or v.void() if supported. Or just v.unknown().
+
+    await post(
+        '/pokemon/master/matchups/override',
+        { form_id, opponent_form_id, judgment },
+        v.unknown(), // we don't care about response body for now
+        { token }
+    );
+}
+
+// --- Team API ---
+
+export async function suggestTeamComplements(team_form_ids: number[], token?: string): Promise<TeamSuggestionResponse> {
+    return post(
+        '/pokemon/master/team/suggest',
+        { team: team_form_ids },
+        TeamSuggestionResponseSchema,
+        token ? { token } : {}
+    );
+}
+
+export async function suggestTeamComplementsWithReasoning(team_form_ids: number[], token?: string): Promise<TeamSuggestionWithReasoningResponse> {
+    return post(
+        '/pokemon/master/team/suggest-with-reasoning',
+        { team: team_form_ids },
+        TeamSuggestionWithReasoningResponseSchema,
+        token ? { token } : {}
+    );
+}
+
+// --- Matrix API ---
+
+export const MatrixCellSchema = v.object({
+    form_id: v.number(),
+    opponent_form_id: v.number(),
+    p: v.number(),
+    n: v.number(),
+});
+
+export const MatchupMatrixDtoSchema = v.object({
+    pokemon: v.array(MatrixPokemonSchema),
+    cells: v.array(MatrixCellSchema),
+});
+
+export type MatchupMatrixDto = v.InferOutput<typeof MatchupMatrixDtoSchema>;
+
+export async function getMatchupMatrix(limit: number = 30, token?: string): Promise<MatchupMatrixDto> {
+    const params = new URLSearchParams({ limit: limit.toString() });
+    return get(
+        `/pokemon/master/matrix?${params.toString()}`,
+        MatchupMatrixDtoSchema,
+        token ? { token } : {}
+    );
+}
+
 // DELETE request
 export async function del(
     endpoint: string,

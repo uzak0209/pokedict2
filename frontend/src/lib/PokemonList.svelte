@@ -2,6 +2,9 @@
     import { onMount } from "svelte";
     import { getUserPokemon, deletePokemon } from "./api/pokemon";
     import type { PokemonResponseDto as PokemonResponse } from "./types/api";
+    import TypeBadge from "./TypeBadge.svelte";
+    import { TYPE_COLORS } from "../data/typeColors";
+    import type { PokemonType } from "../types/pokemon";
 
     export let accessToken: string = "";
 
@@ -26,7 +29,7 @@
     }
 
     async function handleDelete(pokemonId: string) {
-        if (!confirm("このポケモンを削除してもよろしいですか？")) {
+        if (!confirm("Delete this Pokemon?")) {
             return;
         }
 
@@ -34,7 +37,7 @@
             await deletePokemon(pokemonId, accessToken);
             await loadPokemon();
         } catch (e: any) {
-            alert("削除に失敗しました: " + (e.message || "不明なエラー"));
+            alert("Delete failed: " + (e.message || "Unknown error"));
         }
     }
 
@@ -48,106 +51,173 @@
             return `H${pokemon.iv_hp} A${pokemon.iv_attack} B${pokemon.iv_defense} C${pokemon.iv_special_attack} D${pokemon.iv_special_defense} S${pokemon.iv_speed}`;
         }
     }
+
+    function getMoveColor(type: string | null | undefined): string {
+        if (!type) return "#333"; // Default dark gray
+        const capitalizedType =
+            type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+        return TYPE_COLORS[capitalizedType as PokemonType] || "#333";
+    }
+
+    function getIconUrl(formId: number): string {
+        return `/icons/pokemon/${formId}.png`;
+    }
 </script>
 
 <div class="pokemon-list">
     <div class="header">
-        <h2>保存したポケモン</h2>
+        <h2 class="text-2xl font-bold text-white">Your Pokemon</h2>
         <button
-            class="btn-primary"
+            class="px-4 py-2 bg-accents-2 hovered text-white rounded-md transition-colors"
             on:click={() => (window.location.href = "#/pokemon/new")}
         >
-            + 新規登録
+            + New Pokemon
         </button>
     </div>
 
     {#if loading}
-        <div class="loading">読み込み中...</div>
+        <div class="loading text-accents-5">Loading...</div>
     {:else if error}
-        <div class="error">{error}</div>
+        <div class="error text-red-500">{error}</div>
     {:else if pokemon.length === 0}
-        <div class="empty">
-            <p>まだポケモンが登録されていません</p>
+        <div class="empty text-center py-12">
+            <p class="text-accents-5 mb-4">No Pokemon registered yet.</p>
             <button
-                class="btn-primary"
+                class="px-4 py-2 bg-white text-black font-medium rounded-md hover:bg-gray-200 transition-colors"
                 on:click={() => (window.location.href = "#/pokemon/new")}
             >
-                最初のポケモンを登録する
+                Register your first Pokemon
             </button>
         </div>
     {:else}
-        <div class="pokemon-grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each pokemon as poke (poke.pokemon_id)}
-                <div class="pokemon-card">
-                    <div class="card-header">
-                        <h3>
-                            {poke.nickname ?? poke.fullname_jp ?? poke.fullname}
-                        </h3>
-                        {#if poke.nickname}
-                            <span class="species-name"
-                                >({poke.fullname_jp ?? poke.fullname})</span
-                            >
-                        {/if}
+                <div
+                    class="pokemon-card bg-black border border-accents-2 rounded-lg overflow-hidden shadow-sm hover:border-accents-5 transition-colors"
+                >
+                    <div
+                        class="card-header p-4 bg-accents-1 border-b border-accents-2 flex justify-between items-center"
+                    >
+                        <div class="flex items-center gap-3">
+                            <img
+                                src={getIconUrl(poke.form_id)}
+                                alt={poke.fullname}
+                                class="w-10 h-10 pixelated"
+                            />
+                            <div>
+                                <h3 class="text-lg font-bold text-white m-0">
+                                    {poke.nickname ??
+                                        poke.fullname_jp ??
+                                        poke.fullname}
+                                </h3>
+                                {#if poke.nickname}
+                                    <span
+                                        class="text-xs text-accents-5 block mt-1"
+                                        >({poke.fullname_jp ??
+                                            poke.fullname})</span
+                                    >
+                                {/if}
+                            </div>
+                        </div>
+                        <div class="flex gap-1 flex-col items-end">
+                            <TypeBadge
+                                type={poke.type1 as PokemonType}
+                                size="sm"
+                            />
+                            {#if poke.type2}
+                                <TypeBadge
+                                    type={poke.type2 as PokemonType}
+                                    size="sm"
+                                />
+                            {/if}
+                        </div>
                     </div>
 
-                    <div class="card-body">
-                        <div class="info-row">
-                            <span class="label">性格:</span>
-                            <span>{poke.nature}</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="label">特性:</span>
-                            <span>{poke.ability}</span>
-                        </div>
-                        {#if poke.held_item}
-                            <div class="info-row">
-                                <span class="label">持ち物:</span>
-                                <span>{poke.held_item}</span>
+                    <div class="card-body p-4 space-y-3">
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <div class="flex flex-col">
+                                <span class="text-accents-5 text-xs"
+                                    >Nature</span
+                                >
+                                <span class="text-white"
+                                    >{poke.nature_jp ?? poke.nature}</span
+                                >
                             </div>
-                        {/if}
-                        <div class="info-row">
-                            <span class="label">テラス:</span>
-                            <span>{poke.terastal_type}</span>
+                            <div class="flex flex-col">
+                                <span class="text-accents-5 text-xs"
+                                    >Ability</span
+                                >
+                                <span class="text-white"
+                                    >{poke.ability_jp ?? poke.ability}</span
+                                >
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-accents-5 text-xs">Item</span>
+                                <span class="text-white"
+                                    >{poke.held_item_jp ??
+                                        poke.held_item ??
+                                        "-"}</span
+                                >
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="text-accents-5 text-xs"
+                                    >Tera Type</span
+                                >
+                                <span class="text-white"
+                                    >{poke.terastal_type_jp ??
+                                        poke.terastal_type}</span
+                                >
+                            </div>
                         </div>
 
-                        <div class="stats-section">
-                            <div class="info-row">
-                                <span class="label">努力値:</span>
-                                <span class="stats"
+                        <div class="pt-3 border-t border-accents-2">
+                            <div class="mb-2">
+                                <span class="text-accents-5 text-xs block mb-1"
+                                    >EVs</span
+                                >
+                                <span
+                                    class="text-xs font-mono text-accents-4 bg-accents-1 px-2 py-1 rounded block w-full truncate"
                                     >{formatStats(poke, "ev")}</span
                                 >
                             </div>
-                            <div class="info-row">
-                                <span class="label">個体値:</span>
-                                <span class="stats"
-                                    >{formatStats(poke, "iv")}</span
-                                >
-                            </div>
                         </div>
 
-                        <div class="moves-section">
-                            <span class="label">技:</span>
-                            <div class="moves">
-                                {#each poke.moves as move}
-                                    <span class="move-badge">{move}</span>
+                        <div class="pt-2">
+                            <span class="text-accents-5 text-xs block mb-2"
+                                >Moves</span
+                            >
+                            <div class="flex flex-wrap gap-2">
+                                {#each poke.moves as move, i}
+                                    {#if move}
+                                        <span
+                                            class="px-2 py-1 rounded text-xs text-white font-medium shadow-sm"
+                                            style="background-color: {getMoveColor(
+                                                poke.moves_types?.[i],
+                                            )}"
+                                        >
+                                            {poke.moves_jp?.[i] ?? move}
+                                        </span>
+                                    {/if}
                                 {/each}
                             </div>
                         </div>
                     </div>
 
-                    <div class="card-actions">
+                    <div
+                        class="card-actions p-3 bg-accents-1 border-t border-accents-2 flex gap-2 justify-end"
+                    >
                         <button
-                            class="btn-secondary"
+                            class="px-3 py-1.5 text-xs text-white hover:bg-accents-2 rounded transition-colors"
                             on:click={() =>
                                 (window.location.href = `#/pokemon/${poke.pokemon_id}`)}
                         >
-                            詳細
+                            Detail
                         </button>
                         <button
-                            class="btn-danger"
+                            class="px-3 py-1.5 text-xs text-red-400 hover:bg-red-900/20 rounded transition-colors"
                             on:click={() => handleDelete(poke.pokemon_id)}
                         >
-                            削除
+                            Delete
                         </button>
                     </div>
                 </div>
@@ -158,174 +228,12 @@
 
 <style>
     .pokemon-list {
-        padding: 2rem;
-        max-width: 1200px;
-        margin: 0 auto;
+        padding: 1rem 0;
     }
-
     .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 2rem;
-    }
-
-    .header h2 {
-        margin: 0;
-        color: #333;
-    }
-
-    .loading,
-    .error {
-        text-align: center;
-        padding: 2rem;
-        font-size: 1.2rem;
-    }
-
-    .error {
-        color: #d32f2f;
-    }
-
-    .empty {
-        text-align: center;
-        padding: 4rem 2rem;
-    }
-
-    .empty p {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 2rem;
-    }
-
-    .pokemon-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .pokemon-card {
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        transition: box-shadow 0.2s;
-    }
-
-    .pokemon-card:hover {
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    .card-header {
-        padding: 1rem;
-        background: #f5f5f5;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    .card-header h3 {
-        margin: 0;
-        color: #333;
-        font-size: 1.25rem;
-    }
-
-    .species-name {
-        color: #666;
-        font-size: 0.9rem;
-        margin-left: 0.5rem;
-    }
-
-    .card-body {
-        padding: 1rem;
-    }
-
-    .info-row {
-        display: flex;
-        margin-bottom: 0.5rem;
-    }
-
-    .label {
-        font-weight: 600;
-        color: #555;
-        min-width: 70px;
-        margin-right: 0.5rem;
-    }
-
-    .stats-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e0e0e0;
-    }
-
-    .stats {
-        font-family: "Courier New", monospace;
-        font-size: 0.9rem;
-    }
-
-    .moves-section {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 1px solid #e0e0e0;
-    }
-
-    .moves {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        margin-top: 0.5rem;
-    }
-
-    .move-badge {
-        background: #e3f2fd;
-        color: #1976d2;
-        padding: 0.25rem 0.75rem;
-        border-radius: 16px;
-        font-size: 0.85rem;
-    }
-
-    .card-actions {
-        display: flex;
-        gap: 0.5rem;
-        padding: 1rem;
-        background: #f9f9f9;
-        border-top: 1px solid #e0e0e0;
-    }
-
-    .btn-primary,
-    .btn-secondary,
-    .btn-danger {
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 4px;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .btn-primary {
-        background-color: #4caf50;
-        color: white;
-    }
-
-    .btn-primary:hover {
-        background-color: #45a049;
-    }
-
-    .btn-secondary {
-        background-color: #f0f0f0;
-        color: #333;
-        flex: 1;
-    }
-
-    .btn-secondary:hover {
-        background-color: #e0e0e0;
-    }
-
-    .btn-danger {
-        background-color: #f44336;
-        color: white;
-    }
-
-    .btn-danger:hover {
-        background-color: #d32f2f;
     }
 </style>

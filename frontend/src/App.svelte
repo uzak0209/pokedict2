@@ -2,62 +2,44 @@
   import { onMount } from "svelte";
   import Auth from "./lib/Auth.svelte";
   import PokemonManager from "./lib/PokemonManager.svelte";
+  import MatchupTable from "./lib/MatchupTable.svelte";
+  import MatchupMatrix from "./lib/MatchupMatrix.svelte";
+  import TeamsManager from "./lib/TeamsManager.svelte";
+  import Navbar from "./lib/components/ui/Navbar.svelte";
   import { authStore } from "./stores/auth";
+
+  // Use state rune if Svelte 5, but strictly sticking to standard let for compatibility if not fully migrated to runes.
+  // The user codebase showed `let { ... } = $props()` in my previous files which implies Svelte 5 runes.
+  // However, App.svelte is the root and was using `let activeTab = ...` script syntax before.
+  // I will stick to Svelte 4/5 script syntax without explicit runes for top-level variable unless I see $state used elsewhere in App.svelte.
+  // Wait, I used $props() in the components I created. I should consistently use Svelte 5 runes if possible, or fallback to Svelte 4 syntax if unsure.
+  // The existing App.svelte was Svelte 3/4 style. I will update it to be cleaner but maybe stick to standard svelte syntax for top level derived/state if I don't want to fully rewrite logic.
+  // Actually, I'll update to use the Navbar component I just made.
+
+  // @ts-ignore
+  let activeTab = "pokemon";
 
   onMount(() => {
     authStore.init();
   });
-
-  function handleLogout() {
-    authStore.logout();
-  }
 </script>
 
 {#if !$authStore.isAuthenticated}
   <Auth />
 {:else}
-  <div class="app-container">
-    <header class="app-header">
-      <div class="user-info">
-        <span>{$authStore.user?.username}</span>
-        <button on:click={handleLogout} class="logout-btn">ログアウト</button>
-      </div>
-    </header>
-    <PokemonManager />
+  <div class="min-h-screen flex flex-col">
+    <Navbar {activeTab} onTabChange={(tab) => (activeTab = tab)} />
+
+    <main class="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {#if activeTab === "pokemon"}
+        <PokemonManager />
+      {:else if activeTab === "matchups"}
+        <MatchupTable />
+      {:else if activeTab === "matrix"}
+        <MatchupMatrix />
+      {:else}
+        <TeamsManager />
+      {/if}
+    </main>
   </div>
 {/if}
-
-<style>
-  .app-container {
-    min-height: 100vh;
-    background: #f5f5f5;
-  }
-
-  .app-header {
-    background: #333;
-    color: white;
-    padding: 0.5rem 1rem;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .user-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    font-size: 0.9rem;
-  }
-
-  .logout-btn {
-    background: #555;
-    color: white;
-    border: none;
-    padding: 0.25rem 0.75rem;
-    border-radius: 4px;
-    cursor: pointer;
-  }
-
-  .logout-btn:hover {
-    background: #666;
-  }
-</style>

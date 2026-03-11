@@ -3,6 +3,8 @@
     import { getUserTeams, deleteTeam } from "./api/teams";
     import type { TeamResponseDto } from "./types/api";
     import { authStore } from "../stores/auth";
+    import Card from "./components/ui/Card.svelte";
+    import Button from "./components/ui/Button.svelte";
 
     export let userId: string;
 
@@ -34,12 +36,19 @@
     }
 
     function handleCreate() {
-        // PokemonManagerで "/teams/new" への遷移を処理してもらうため、
-        // 単純に親コンポーネントの責務ではなくハッシュ変更をここでやるか、
-        // あるいは親にイベントを送るか。
-        // PokemonManager.svelte では、TeamListからイベントを受け取るようにはなっていなかったが、
-        // ハッシュ変更で制御しているので、直接ハッシュを変えるのが手っ取り早い。
-        window.location.hash = "/teams/new";
+        // Since we are using TeamsManager, we can't just change hash if TeamsManager uses local state.
+        // Wait, TeamsManager logic was:
+        // function handleCreate() { mode = "new"; }
+        // BUT TeamList is a child of TeamsManager.
+        // TeamList.svelte had `handleCreate` which did `window.location.hash = "/teams/new"`.
+        // Now TeamsManager handles "List" vs "New" via state.
+        // I need to emit an event from TeamList to parent to request "create".
+        // But TeamsManager doesn't listen to a "create" event from TeamList, it has a "Create New Team" button in its own header (see TeamsManager.svelte).
+        // So the "Create" button INSIDE TeamList is actually redundant if TeamsManager has one.
+        // HOWEVER, TeamsManager's header button calls `handleCreate`.
+        // TeamList might be empty, so it might show an empty state with a create button.
+        // I should emit a "create" event if I keep the button inside TeamList.
+        dispatch("create");
     }
 
     function handleEdit(teamId: string) {
@@ -47,231 +56,127 @@
     }
 
     async function handleDelete(teamId: string) {
-        if (!confirm("本当にこのチームを削除しますか？")) return;
+        if (!confirm("Are you sure you want to delete this team?")) return;
 
         try {
             await deleteTeam(teamId, accessToken);
             teams = teams.filter((t) => t.team_id !== teamId);
         } catch (e: any) {
-            alert("削除に失敗しました: " + e.message);
+            alert("Failed to delete: " + e.message);
         }
     }
 </script>
 
-<div class="team-list-container">
-    <div class="header">
-        <h2>マイチーム一覧</h2>
-        <button class="btn-create" on:click={handleCreate}>
-            + 新しいチームを作成
-        </button>
-    </div>
-
+<div class="mt-6">
     {#if loading}
-        <div class="loading">読み込み中...</div>
+        <div class="text-center py-12 text-accents-5">Loading teams...</div>
     {:else if error}
-        <div class="error">{error}</div>
+        <div class="text-center py-12 text-red-500">{error}</div>
     {:else if teams.length === 0}
-        <div class="empty-state">
-            <p>まだチームがありません。</p>
-            <button class="btn-primary" on:click={handleCreate}>
-                最初のチームを作成する
-            </button>
+        <div
+            class="text-center py-12 bg-accents-1 rounded-xl border border-accents-2 border-dashed"
+        >
+            <p class="text-accents-5 mb-4">No teams found.</p>
+            <Button variant="primary" onclick={handleCreate}>
+                Create your first team
+            </Button>
         </div>
     {:else}
-        <div class="team-grid">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {#each teams as team}
-                <div class="team-card">
-                    <div class="team-header">
-                        <h3>{team.team_name}</h3>
-                        <div class="actions">
+                <Card
+                    class="hover:border-accents-5 transition-colors duration-200 group relative"
+                >
+                    <div class="flex justify-between items-start mb-4">
+                        <h3
+                            class="text-lg font-semibold text-white truncate pr-8"
+                        >
+                            {team.team_name}
+                        </h3>
+                        <div
+                            class="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity absolute top-4 right-4 bg-black/80 rounded-md p-1 backdrop-blur-sm border border-accents-2"
+                        >
                             <button
-                                class="btn-icon edit"
-                                on:click={() => handleEdit(team.team_id)}
-                                title="編集"
+                                class="text-accents-5 hover:text-white p-1 rounded transition-colors"
+                                onclick={() => handleEdit(team.team_id)}
+                                title="Edit"
                             >
-                                ✎
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    ><path
+                                        d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                                    ></path></svg
+                                >
                             </button>
                             <button
-                                class="btn-icon delete"
-                                on:click={() => handleDelete(team.team_id)}
-                                title="削除"
+                                class="text-accents-5 hover:text-red-500 p-1 rounded transition-colors"
+                                onclick={() => handleDelete(team.team_id)}
+                                title="Delete"
                             >
-                                🗑️
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    ><polyline points="3 6 5 6 21 6"
+                                    ></polyline><path
+                                        d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                                    ></path></svg
+                                >
                             </button>
                         </div>
                     </div>
-                    <div class="pokemon-icons">
+
+                    <div class="flex gap-2 flex-wrap">
                         {#each team.pokemon as p}
-                            <div class="pokemon-icon" title={p.fullname_jp}>
-                                <!-- アイコン画像があればここに表示。なければ名前の先頭文字など -->
-                                <div class="placeholder-icon">
-                                    {p.fullname_jp.charAt(0)}
+                            <div class="flex flex-col items-center w-10">
+                                <div
+                                    class="w-10 h-10 rounded-full bg-accents-2 flex items-center justify-center overflow-hidden border border-accents-3 mb-1"
+                                >
+                                    <img
+                                        src={`/icons/pokemon/${p.form_id}.png`}
+                                        alt={p.fullname_jp}
+                                        class="w-full h-full object-cover pixelated"
+                                        onerror={(e) =>
+                                            ((
+                                                e.target as HTMLImageElement
+                                            ).src =
+                                                `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.form_id}.png`)}
+                                    />
                                 </div>
-                                <span class="pokemon-name">{p.fullname_jp}</span
+                                <span
+                                    class="text-[10px] text-accents-5 truncate w-full text-center"
+                                    >{p.fullname_jp}</span
                                 >
                             </div>
                         {/each}
                         {#each Array(6 - team.pokemon.length) as _}
-                            <div class="pokemon-icon empty">
-                                <span class="empty-slot">-</span>
+                            <div
+                                class="flex flex-col items-center w-10 opacity-30"
+                            >
+                                <div
+                                    class="w-8 h-8 rounded-full border border-accents-2 border-dashed flex items-center justify-center text-xs text-accents-5"
+                                >
+                                    -
+                                </div>
                             </div>
                         {/each}
                     </div>
-                </div>
+                </Card>
             {/each}
         </div>
     {/if}
 </div>
-
-<style>
-    .team-list-container {
-        max-width: 1000px;
-        margin: 0 auto;
-    }
-
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 2rem;
-    }
-
-    .header h2 {
-        margin: 0;
-        color: #333;
-    }
-
-    .btn-create {
-        background-color: #4caf50;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 4px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-
-    .btn-create:hover {
-        background-color: #43a047;
-    }
-
-    .team-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
-    }
-
-    .team-card {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        padding: 1.5rem;
-        transition:
-            transform 0.2s,
-            box-shadow 0.2s;
-    }
-
-    .team-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-    }
-
-    .team-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 1rem;
-    }
-
-    .team-header h3 {
-        margin: 0;
-        font-size: 1.25rem;
-        color: #333;
-    }
-
-    .actions {
-        display: flex;
-        gap: 0.5rem;
-    }
-
-    .btn-icon {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1.2rem;
-        padding: 0.25rem;
-        border-radius: 4px;
-        transition: background 0.2s;
-    }
-
-    .btn-icon:hover {
-        background-color: #f0f0f0;
-    }
-
-    .btn-icon.delete:hover {
-        color: #d32f2f;
-        background-color: #ffebee;
-    }
-
-    .pokemon-icons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-
-    .pokemon-icon {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 40px;
-    }
-
-    .placeholder-icon {
-        width: 32px;
-        height: 32px;
-        background-color: #e0e0e0;
-        border-radius: 50%;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        font-size: 0.8rem;
-        color: #666;
-        margin-bottom: 0.25rem;
-    }
-
-    .pokemon-icon.empty .empty-slot {
-        color: #ccc;
-        font-size: 1.5rem;
-    }
-
-    .pokemon-name {
-        font-size: 0.6rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-
-    .loading,
-    .error,
-    .empty-state {
-        text-align: center;
-        padding: 3rem;
-        color: #666;
-    }
-
-    .error {
-        color: #d32f2f;
-    }
-
-    .btn-primary {
-        background-color: #2196f3;
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 4px;
-        cursor: pointer;
-        margin-top: 1rem;
-    }
-</style>

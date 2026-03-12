@@ -15,11 +15,14 @@ export const register = async (c: Context<AuthEnv>) => {
   const result = await authService.register(validated);
 
   // Return response with snake_case field names
-  return c.json({
-    user_id: result.userId,
-    username: result.username,
-    email: result.email,
-  }, 201);
+  return c.json(
+    {
+      user_id: result.userId,
+      username: result.username,
+      email: result.email,
+    },
+    201
+  );
 };
 
 export const login = async (c: Context<AuthEnv>) => {
